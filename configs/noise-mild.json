@@ -1,0 +1,7 @@
+{
+  "seed": 0,
+  "distance_std": 0.015,
+  "heading_std": 0.02,
+  "distance_bias": 0.01,
+  "heading_bias": 0.005
+}

@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ant-homing-sim"
+version = "0.1.0"
+description = "A reproducible 3D visual-memory navigation research sandbox"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "numpy>=1.26,<3",
+    "pillow>=10,<13",
+    "pybullet==3.2.7",
+    "imageio>=2.34,<3",
+]
+
+[project.optional-dependencies]
+ml = ["torch==2.6.0"]
+dev = ["pytest>=8,<10", "ruff>=0.11,<1"]
+
+[project.scripts]
+ant-homing = "ant_homing.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ant_homing"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
