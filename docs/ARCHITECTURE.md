@@ -75,6 +75,8 @@ Episode output contains:
 - `provenance.json`: runtime and dependency versions.
 - `home.png`, `final.png`, `trajectory.png`, optional `observations.gif`, and local `index.html`.
 
+The `demo` command also creates `replay.html`, `replay.gif`, and `replay.png`. The standalone HTML provides recorded play/pause, action stepping, scrubbing, and speed selection. It synchronizes the actual rendered arena, evaluator path/agent marker, current and stored compass-labelled views, and a route close-up. Overview overlays never enter policy observations. Long episodes are subsampled to at most approximately 180 displayed frames, always retaining the final action.
+
 Snapshot memory counts stored RGB only. CNN weights and controller state are excluded; checkpoint file size is reported separately. No memory-efficiency claim should combine these quantities without specifying what is counted.
 
 ## Extension points

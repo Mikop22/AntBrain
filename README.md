@@ -24,6 +24,8 @@ For an existing cloud checkout, start in `/workspace/AntBrain` and run the setup
 
 Open `artifacts/first-run/visual-demo/index.html` locally to inspect the trajectory, stored/current panoramas, animation, and metrics. `artifacts/first-run/arena/arena.png` shows the 3D environment. Full outputs are JSON/NPZ/PyTorch files suitable for analysis.
 
+For the clearest demonstration, open `visual-demo/replay.html`: a standalone recorded replay with play/pause, individual action stepping, and a scrubber. It combines the 3D arena, agent/heading marker, travelled path, route close-up, and labelled current/home camera views. `replay.gif` is the shareable animated version. Overhead positions are evaluation overlays, not controller inputs.
+
 ## Commands
 
 The installed `ant-homing` console command and `python -m ant_homing` are equivalent.
@@ -67,6 +69,7 @@ For a non-grid route, add `--route configs/route-example.json` to `demo` or `ben
 | `learning.py` | Compact spatial CNN, within-scene contrastive training, validation checkpoint selection, and retrieval metrics |
 | `navigation.py` | Sensor-only controllers and evaluator-owned trajectories/metrics |
 | `artifacts.py` | JSON records, runtime provenance, trajectory plots, GIFs, and local HTML reports |
+| `replay.py` | Synchronized overhead/camera replay, annotated GIF, and standalone playback controls |
 | `cli.py` | Collection, training, evaluation, rendering, and pilot experiment commands |
 
 The CNN learns an image embedding from matched gallery/query views using within-scene negatives. It receives images only. Recognition is evaluated against other stored locations in the same held-out scene. Every query has a gallery counterpart; unfamiliar-place rejection is not implemented.

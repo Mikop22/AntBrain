@@ -96,6 +96,11 @@ def write_episode(result: dict, output: Path) -> None:
             loop=0,
         )
     animation = '<img src="observations.gif" alt="Agent camera replay">' if frames else ""
+    replay_link = (
+        '<p><a href="replay.html">Open the annotated replay with pause and step controls</a></p>'
+        if frames
+        else ""
+    )
     text = html.escape(json.dumps(summary, indent=2))
     report = f"""<!doctype html>
 <html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
@@ -106,6 +111,7 @@ img{{max-width:100%;border:1px solid #d6dfea;border-radius:8px}}pre{{overflow:au
 <h1>Ant Homing Simulation</h1><p>Method: <b>{html.escape(summary["method"])}</b> ·
 Endpoint error: <b>{summary["endpoint_error"]:.3f} m</b> · Stop: {html.escape(summary["stop_reason"])}</p>
 <p>This is a simulation run, not evidence of research superiority. True state is used only for evaluation.</p>
+{replay_link}
 <div class="grid"><section><h2>Trajectory</h2><img src="trajectory.png" alt="Trajectory"></section>
 <section><h2>Stored home view</h2><img src="home.png" alt="Stored panorama"><h2>Final view</h2>
 <img src="final.png" alt="Final panorama"><h2>Agent observations</h2>{animation}</section></div>

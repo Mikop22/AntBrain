@@ -86,9 +86,12 @@ def _render(args):
 
 
 def _demo(args):
+    from .replay import write_replay
+
     output = new_output(args.output)
     result = _episode(args)
     write_episode(result, output)
+    write_replay(result, output)
     return {"output": str(output), **result["summary"]}
 
 
