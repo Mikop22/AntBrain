@@ -6,19 +6,22 @@ Validated on 9 November 2026 in the cloud workspace, using Python 3.11.17, PyBul
 
 | Check | Result |
 | --- | --- |
-| Full pytest suite | **47 passed**, no failures or skips |
+| Full pytest suite | **55 passed**, no failures or skips |
 | Simulation tests | 11 passed: actual rendering, deterministic views, compass ordering, collision sweeps, parallel clients, independent noise seeds, and lifecycle |
 | Learning tests | 12 passed: actual optimization/weight updates, checkpoint reload, deterministic training, held-out scenes, provenance validation, and stale camera-convention rejection |
 | Navigation tests | 13 passed: sensor-only controllers, physical probe costs, bounded trials, blocked-route failure, route recording, and checkpoint hashing |
-| CLI/artifact tests | 9 passed: actual render/demo outputs, safe output handling, malformed configuration diagnostics, and custom route/noise seed |
-| Replay tests | 2 passed: perspective projection and action-to-frame synchronization |
-| Ruff check and format check | Passed for all 14 Python source/test files |
+| CLI/artifact tests | 10 passed: actual render/demo outputs, safe output handling, malformed configuration diagnostics, custom route/noise seed, and displaced-home odometry plotting |
+| Replay tests | 4 passed: perspective projection, action/frame synchronization, lifecycle-event retention, and ideal showcase playback |
+| Showcase tests | 5 passed: long outbound/direct return, cargo lifecycle, bounded forward movement, synchronized 3D renders, and reproducibility |
+| Ruff check and format check | Passed for all 16 Python source/test files |
 | Bootstrap repeatability | Rerun successfully from `/tmp`, using the script's own project-directory resolution |
 | Wheel distribution | Built successfully; installed separately and rendered a scene through the installed wheel |
 
 After migration into the AntBrain repository, a fresh repository-local virtual environment was installed with the frozen lockfile. Imports were verified against the new checkout, all 45 tests and Ruff checks passed again, and the complete smoke workflow regenerated its outputs successfully from the repository root.
 
 The annotated-replay update adds synchronized evaluator/camera views and standalone play/pause, step, speed, and scrub controls. The updated suite has 47 passing tests. Chromium/Playwright verified HTML initialization, action stepping, scrubbing, and play/pause with no JavaScript errors; a frame was visually inspected for alignment and readable labels. The replay is recorded playback, not a live simulator GUI.
+
+The ideal-foraging update adds a separate `showcase` command. The full suite now has 55 passing tests. Its actual rendered episode travelled 7.713 m outbound, picked up food, and returned 1.978 m directly home with zero collisions. Pickup, carrying, and delivery frames and browser controls were checked. An independent reviewer also exercised 15 episodes across arena sizes 4/6/8 m and five scene seeds; all completed without collision. This is an ideal engine demonstration, not evidence that a learned navigation policy has achieved these results.
 
 ## End-to-end execution
 

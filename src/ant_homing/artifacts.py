@@ -54,7 +54,20 @@ def trajectory_image(records: list[dict], arena_size: float, size: int = 640) ->
         draw.line((margin, y, size - margin, y), fill="#dfe4eb")
     draw.rectangle((margin, margin, size - margin, size - margin), outline="#9aa8b8", width=2)
     for key, color in (("odometry", "#d58a16"), ("true_pose", "#1766ad")):
-        points = [project(record[key]) for record in records]
+        if key == "odometry" and records:
+            # Dead reckoning is relative to reset; evaluator poses are world coordinates.
+            origin = records[0]
+            points = [
+                project(
+                    {
+                        "x": record[key]["x"] - origin[key]["x"] + origin["true_pose"]["x"],
+                        "y": record[key]["y"] - origin[key]["y"] + origin["true_pose"]["y"],
+                    }
+                )
+                for record in records
+            ]
+        else:
+            points = [project(record[key]) for record in records]
         if len(points) > 1:
             draw.line(points, fill=color, width=3)
     if records:
@@ -76,6 +89,7 @@ def trajectory_image(records: list[dict], arena_size: float, size: int = 640) ->
 def write_episode(result: dict, output: Path) -> None:
     """Write machine-readable results and a self-contained local report."""
     summary = result["summary"]
+    ideal = summary.get("demonstration_mode") == "ideal_foraging"
     write_json(output / "summary.json", summary)
     write_json(output / "trajectory.json", result["trajectory"])
     write_json(output / "provenance.json", provenance())
@@ -102,6 +116,12 @@ def write_episode(result: dict, output: Path) -> None:
         else ""
     )
     text = html.escape(json.dumps(summary, indent=2))
+    description = (
+        "Ideal engine showcase: scripted foraging, food pickup and noise-free path integration. "
+        "This is a demonstration of the intended behaviour, not a trained navigation result."
+        if ideal
+        else "This is a simulation run, not evidence of research superiority. True state is used only for evaluation."
+    )
     report = f"""<!doctype html>
 <html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
 <title>Ant Homing — Episode</title>
@@ -110,7 +130,7 @@ img{{max-width:100%;border:1px solid #d6dfea;border-radius:8px}}pre{{overflow:au
 .grid{{display:grid;grid-template-columns:1fr 1fr;gap:20px}}@media(max-width:650px){{.grid{{grid-template-columns:1fr}}}}</style>
 <h1>Ant Homing Simulation</h1><p>Method: <b>{html.escape(summary["method"])}</b> ·
 Endpoint error: <b>{summary["endpoint_error"]:.3f} m</b> · Stop: {html.escape(summary["stop_reason"])}</p>
-<p>This is a simulation run, not evidence of research superiority. True state is used only for evaluation.</p>
+<p>{description}</p>
 {replay_link}
 <div class="grid"><section><h2>Trajectory</h2><img src="trajectory.png" alt="Trajectory"></section>
 <section><h2>Stored home view</h2><img src="home.png" alt="Stored panorama"><h2>Final view</h2>

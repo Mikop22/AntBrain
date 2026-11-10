@@ -2,7 +2,9 @@
 
 A Python research sandbox for learned visual memory and local homing. An agent moves on a flat floor in a procedurally generated 3D arena and observes low-resolution RGB panoramas. Rendering and neural-network training run on CPU; no GPU or external scene assets are required.
 
-![Visual homing camera replay](docs/assets/homing-demo.gif)
+![Ideal ant foraging, food pickup and direct return](docs/assets/homing-demo.gif)
+
+The preview is an **ideal engine showcase**: a scripted foraging trip, visible food pickup, and a direct return using noise-free path integration. It illustrates the intended behaviour; it is not a neural-network result. The [probing baseline replay](docs/assets/probing-baseline.gif) remains available for comparison.
 
 [Arena overview](docs/assets/arena.png) · [Evaluator trajectory](docs/assets/trajectory.png)
 
@@ -31,6 +33,9 @@ For the clearest demonstration, open `visual-demo/replay.html`: a standalone rec
 The installed `ant-homing` console command and `python -m ant_homing` are equivalent.
 
 ```bash
+# Ideal foraging story: leave the nest, collect food, and carry it directly home.
+.venv/bin/python -m ant_homing showcase --output artifacts/foraging
+
 # Inspect a deterministic scene and its agent-level panorama.
 .venv/bin/python -m ant_homing render --seed 5 --output artifacts/scene-5
 
@@ -56,6 +61,8 @@ The installed `ant-homing` console command and `python -m ant_homing` are equiva
   --noise configs/noise-mild.json --output artifacts/pilot
 ```
 
+Open `artifacts/foraging/replay.html` for the ideal recorded replay, or view `replay.gif`. The ant and food are rendered in 3D; pickup, carrying and delivery are episode states recorded in the trajectory. Research `demo` and `benchmark` commands keep their existing controllers and measurements.
+
 Use `--help` on any subcommand. `render`, `demo`, and `benchmark` accept `--config configs/arena.json`. `collect --scenes configs/scenes-smoke.json` selects an explicit split-to-scene-seed mapping. The Python APIs allow custom outbound motion sequences and dataset parameters.
 
 For a non-grid route, add `--route configs/route-example.json` to `demo` or `benchmark`. Use `--noise-seed 17` for an independent noise repetition without changing scene geometry. The default outbound route is deliberately simple and commensurate with the probe step size; success on it does not establish a broad catchment area.
@@ -70,6 +77,7 @@ For a non-grid route, add `--route configs/route-example.json` to `demo` or `ben
 | `navigation.py` | Sensor-only controllers and evaluator-owned trajectories/metrics |
 | `artifacts.py` | JSON records, runtime provenance, trajectory plots, GIFs, and local HTML reports |
 | `replay.py` | Synchronized overhead/camera replay, annotated GIF, and standalone playback controls |
+| `showcase.py` | Separate ideal foraging scenario with visible ant, food pickup and delivery |
 | `cli.py` | Collection, training, evaluation, rendering, and pilot experiment commands |
 
 The CNN learns an image embedding from matched gallery/query views using within-scene negatives. It receives images only. Recognition is evaluated against other stored locations in the same held-out scene. Every query has a gallery counterpart; unfamiliar-place rejection is not implemented.

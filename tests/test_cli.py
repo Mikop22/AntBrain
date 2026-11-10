@@ -43,6 +43,17 @@ def test_trajectory_image_handles_an_empty_trial():
     assert np.asarray(image).shape == (712, 640, 3)
 
 
+def test_trajectory_aligns_relative_odometry_with_a_nonzero_home():
+    records = [
+        {"true_pose": {"x": -1.0, "y": -0.5}, "odometry": {"x": 0.0, "y": 0.0}},
+        {"true_pose": {"x": -0.7, "y": -0.5}, "odometry": {"x": 0.8, "y": 0.0}},
+    ]
+    image = trajectory_image(records, 6.0)
+    # An estimated position beyond the true endpoint lies on the amber trace,
+    # translated into the same world frame as the displaced home.
+    assert image.getpixel((292, 366)) == (213, 138, 22)
+
+
 @pytest.mark.parametrize("settings", [{"unknown": 1}, [], None, {"arena_size": "bad"}])
 def test_invalid_config_is_a_concise_error(tmp_path, settings, capsys):
     config = tmp_path / "bad.json"

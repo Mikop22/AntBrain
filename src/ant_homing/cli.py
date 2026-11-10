@@ -95,6 +95,17 @@ def _demo(args):
     return {"output": str(output), **result["summary"]}
 
 
+def _showcase(args):
+    from .replay import write_replay
+    from .showcase import run_showcase
+
+    output = new_output(args.output)
+    result = run_showcase(_config(args), capture_frames=True)
+    write_episode(result, output)
+    write_replay(result, output)
+    return {"output": str(output), **result["summary"]}
+
+
 def _benchmark(args):
     output = new_output(args.output)
     config = _config(args)
@@ -164,6 +175,13 @@ def _evaluate(args):
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(description="3D visual-memory navigation research sandbox")
     commands = root.add_subparsers(dest="command", required=True)
+    showcase = commands.add_parser(
+        "showcase", help="Ideal food pickup and direct homing demonstration"
+    )
+    showcase.set_defaults(function=_showcase)
+    showcase.add_argument("--config", help="JSON object with SimConfig fields")
+    showcase.add_argument("--seed", type=int, default=None)
+    showcase.add_argument("--output", required=True, help="New or empty artifact directory")
     for name, function in (("render", _render), ("demo", _demo), ("benchmark", _benchmark)):
         command = commands.add_parser(name)
         command.set_defaults(function=function)
