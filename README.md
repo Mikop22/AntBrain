@@ -6,6 +6,8 @@ A research simulation for learned visual memory and local homing.
 
 [Arena overview](docs/assets/arena.png) · [Evaluator trajectory](docs/assets/trajectory.png)
 
+[Level 1 visual-memory experiments](docs/level1/README.md)
+
 ## Quick start
 
 Requires Linux x86-64 (validated platform), [uv](https://docs.astral.sh/uv/getting-started/installation/), and network access for the first installation. Python 3.11 and dependencies are pinned through `.python-version` and `uv.lock`.

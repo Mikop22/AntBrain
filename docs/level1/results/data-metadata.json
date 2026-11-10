@@ -1,0 +1,479 @@
+{
+  "format_version": 1,
+  "seed": 2026,
+  "scene_seeds": {
+    "train": [
+      100,
+      101,
+      102,
+      103,
+      104,
+      105,
+      106,
+      107,
+      108,
+      109,
+      110,
+      111,
+      112,
+      113,
+      114,
+      115,
+      116,
+      117,
+      118,
+      119,
+      120,
+      121,
+      122,
+      123
+    ],
+    "val": [
+      200,
+      201,
+      202,
+      203,
+      204,
+      205,
+      206,
+      207
+    ],
+    "test": [
+      300,
+      301,
+      302,
+      303,
+      304,
+      305,
+      306,
+      307,
+      308,
+      309,
+      310,
+      311
+    ]
+  },
+  "camera_convention": "compass-east-south-west-north-v1",
+  "image_shape": [
+    32,
+    128,
+    3
+  ],
+  "places_per_scene": 48,
+  "observations_per_place": 4,
+  "unfamiliar_per_scene": 24,
+  "gallery_min_spacing_m": 0.5,
+  "observation_max_jitter_m": 0.16,
+  "query_max_jitter_m": 0.2,
+  "unfamiliar_min_distance_m": 0.6,
+  "retrieval_tolerance_m": 0.25,
+  "conditions": [
+    "clean",
+    "exposure",
+    "occlusion",
+    "combined"
+  ],
+  "sensor_model": {
+    "exposure_gain_range": [
+      0.55,
+      1.45
+    ],
+    "contrast_range": [
+      0.75,
+      1.25
+    ],
+    "channel_gain_range": [
+      0.8,
+      1.2
+    ],
+    "rgb_noise_std": 2.5,
+    "occluded_camera_count": [
+      1,
+      2
+    ],
+    "patch_side_fraction_range": [
+      0.3333333333333333,
+      0.75
+    ],
+    "scope": "post-render sensor perturbations, not physical relighting or obstacles"
+  },
+  "scene_configs": [
+    {
+      "seed": 100,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 101,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 102,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 103,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 104,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 105,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 106,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 107,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 108,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 109,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 110,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 111,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 112,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 113,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 114,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 115,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 116,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 117,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 118,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 119,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 120,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 121,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 122,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 123,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 200,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 201,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 202,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 203,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 204,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 205,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 206,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 207,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 300,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 301,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 302,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 303,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 304,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 305,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 306,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 307,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 308,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 309,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 310,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    },
+    {
+      "seed": 311,
+      "arena_size": 8.0,
+      "camera_size": 32,
+      "camera_height": 0.3,
+      "agent_radius": 0.12,
+      "landmark_count": 24
+    }
+  ],
+  "counts": {
+    "train": {
+      "scenes": 24,
+      "gallery": 1152,
+      "queries": 5184,
+      "familiar_queries": 4608,
+      "unfamiliar_queries": 576
+    },
+    "val": {
+      "scenes": 8,
+      "gallery": 384,
+      "queries": 1728,
+      "familiar_queries": 1536,
+      "unfamiliar_queries": 192
+    },
+    "test": {
+      "scenes": 12,
+      "gallery": 576,
+      "queries": 2592,
+      "familiar_queries": 2304,
+      "unfamiliar_queries": 288
+    }
+  },
+  "data_sha256": "33fbd02f0cf8c3f354f38bdd4313b7cbe3b9d12a90fd08cb5823595f2f761ff1",
+  "scope": "within-scene retrieval and familiarity rejection, with scene-disjoint representation training"
+}
