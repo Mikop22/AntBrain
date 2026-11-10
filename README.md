@@ -1,4 +1,4 @@
-# AntBrain: Ant Homing Simulation
+# AntBrain
 
 A research simulation for learned visual memory and local homing.
 
