@@ -100,7 +100,18 @@ def _showcase(args):
     from .showcase import run_showcase
 
     output = new_output(args.output)
-    result = run_showcase(_config(args), capture_frames=True)
+    food_seed = (
+        args.food_seed
+        if args.food_seed is not None
+        else int(np.random.SeedSequence().generate_state(1)[0])
+    )
+    result = run_showcase(
+        _config(args),
+        capture_frames=True,
+        food_seed=food_seed,
+        search_seed=args.search_seed,
+        max_steps=args.max_steps,
+    )
     write_episode(result, output)
     write_replay(result, output)
     return {"output": str(output), **result["summary"]}
@@ -181,6 +192,11 @@ def parser() -> argparse.ArgumentParser:
     showcase.set_defaults(function=_showcase)
     showcase.add_argument("--config", help="JSON object with SimConfig fields")
     showcase.add_argument("--seed", type=int, default=None)
+    showcase.add_argument("--food-seed", type=int, help="Reproduce food placement; omitted=random")
+    showcase.add_argument(
+        "--search-seed", type=int, default=0, help="Search order independent of food"
+    )
+    showcase.add_argument("--max-steps", type=int, default=2000, help="Total action budget")
     showcase.add_argument("--output", required=True, help="New or empty artifact directory")
     for name, function in (("render", _render), ("demo", _demo), ("benchmark", _benchmark)):
         command = commands.add_parser(name)

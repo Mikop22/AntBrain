@@ -117,7 +117,7 @@ def write_episode(result: dict, output: Path) -> None:
     )
     text = html.escape(json.dumps(summary, indent=2))
     description = (
-        "Ideal engine showcase: scripted foraging, hidden food pickup and obstacle-aware scene-geometry planning. "
+        "Engine showcase: food-unknown search, local detection, and obstacle-aware scene-geometry planning. "
         "This is a demonstration of the intended behaviour, not a trained navigation result."
         if ideal
         else "This is a simulation run, not evidence of research superiority. True state is used only for evaluation."

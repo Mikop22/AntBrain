@@ -201,7 +201,7 @@ def write_replay(result: dict, output: Path) -> None:
                 stroke_fill="#23463b",
             )
             food = record.get("food_position")
-            if food:
+            if food and record.get("food_detected", True):
                 fx, fy = world_point(food)
                 draw.ellipse((fx - 9, fy - 9, fx + 9, fy + 9), outline="#ffd34d", width=2)
                 if not record.get("carrying"):
@@ -321,7 +321,7 @@ seek.oninput=()=>{pause();show(Number(seek.value))};document.getElementById('bac
         page = page.replace('value="700"', 'value="250"').replace('value="150"', 'value="50"')
         page = page.replace(
             "Pause or drag the slider to inspect a probe.",
-            "Ideal engine showcase: scripted outbound foraging and obstacle-aware scene-geometry planning; not a trained neural policy. Pause or scrub to inspect pickup, carrying and delivery.",
+            "Food-unknown pillar search with local range/visibility detection and visited-site memory. Scene geometry still supplies ideal obstacle routing; this is not a trained neural policy. Pause or scrub to inspect the search, pickup and delivery.",
         )
     page = (
         page.replace("FRAME_DATA", data)

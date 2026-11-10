@@ -6,14 +6,15 @@ Validated on 9 November 2026 in the cloud workspace, using Python 3.11.17, PyBul
 
 | Check | Result |
 | --- | --- |
-| Full pytest suite | **56 passed**, no failures or skips |
+| Full pytest suite | **62 passed**, no failures or skips |
 | Simulation tests | 11 passed: actual rendering, deterministic views, compass ordering, collision sweeps, parallel clients, independent noise seeds, and lifecycle |
 | Learning tests | 12 passed: actual optimization/weight updates, checkpoint reload, deterministic training, held-out scenes, provenance validation, and stale camera-convention rejection |
 | Navigation tests | 13 passed: sensor-only controllers, physical probe costs, bounded trials, blocked-route failure, route recording, and checkpoint hashing |
 | CLI/artifact tests | 10 passed: actual render/demo outputs, safe output handling, malformed configuration diagnostics, custom route/noise seed, and displaced-home odometry plotting |
 | Replay tests | 4 passed: perspective projection, action/frame synchronization, lifecycle-event retention, and ideal showcase playback |
-| Showcase tests | 6 passed: complex outbound/obstacle-aware return, cargo lifecycle and clearance, bounded movement, synchronized renders, hidden-food geometry, and configuration handling |
-| Ruff check and format check | Passed for all 16 Python source/test files |
+| Showcase tests | 9 passed: food-unknown search, cargo lifecycle/clearance, bounded movement, synchronized renders, hidden-food geometry, pre-detection invariance, inspection memory, and exact-budget state handling |
+| Search tests | 3 passed: range/occlusion sensing, visited-site memory, and invalid configuration |
+| Ruff check and format check | Passed for all 18 Python source/test files |
 | Bootstrap repeatability | Rerun successfully from `/tmp`, using the script's own project-directory resolution |
 | Wheel distribution | Built successfully; installed separately and rendered a scene through the installed wheel |
 
@@ -24,6 +25,10 @@ The annotated-replay update adds synchronized evaluator/camera views and standal
 The ideal-foraging update adds a separate `showcase` command. The full suite now has 55 passing tests. Its actual rendered episode travelled 7.713 m outbound, picked up food, and returned 1.978 m directly home with zero collisions. Pickup, carrying, and delivery frames and browser controls were checked. An independent reviewer also exercised 15 episodes across arena sizes 4/6/8 m and five scene seeds; all completed without collision. This is an ideal engine demonstration, not evidence that a learned navigation policy has achieved these results.
 
 The subsequent pillar scenario replaces that simple route: the default run travels **19.143 m outbound** to food behind an actual pillar and **3.958 m home** around the obstruction, with zero collisions. Tests check the nest-to-food sightline against the pillar and maintain clearance for the carried object. The latest full suite has **56 passing tests**. The compact 1120 × 656 GIF omits the title/status banner and explanatory footer; camera/scene alignment and browser pickup/delivery scrubbing, stepping, and play/pause were verified. Metadata and planning assumptions remain in the HTML/JSON and documentation.
+
+The current food-unknown search replaces target-directed outbound planning. With scene/search/food seeds all 0, the ant completes 36 empty inspection sites across five empty pillars before detecting food at pillar 12, then picks it up and delivers it without collision. Outbound travel is 21.989 m and return travel is 3.772 m. Food seed 1 produces a different target and later discovery under the same search policy. An independent reviewer confirmed identical actions, poses, odometry, and selected inspection pillars for all 662 records before the earlier first detection; range and occlusion checks passed independently. Exact action-budget boundaries preserve the recorded pickup/delivery state. The latest full suite has **62 passing tests**. Browser search/detection/delivery scrubbing and playback were verified with no JavaScript errors; the compact layout remains unchanged.
+
+The current preview is reproducible with `showcase --food-seed 0 --search-seed 0`. Omitting `--food-seed` generates and records a fresh seed. A one-action CLI budget was also checked: it returned a recorded `step_limit` failure with food still on the ground and no false pickup or delivery.
 
 ## End-to-end execution
 

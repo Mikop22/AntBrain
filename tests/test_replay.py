@@ -58,7 +58,7 @@ def test_ideal_replay_uses_dynamic_overview_and_explicit_showcase_labels(tmp_pat
         )
     write_replay(result, tmp_path)
     html = (tmp_path / "replay.html").read_text()
-    assert "Ideal engine showcase" in html and "not a trained neural policy" in html
+    assert "Food-unknown pillar search" in html and "not a trained neural policy" in html
     assert 'value="100" selected' in html
     with Image.open(tmp_path / "replay.gif") as animation:
         assert animation.size == (1120, 656)

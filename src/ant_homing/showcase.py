@@ -15,6 +15,15 @@ from math import atan2, ceil, cos, hypot, pi, sin
 import numpy as np
 import pybullet as bullet
 
+from .search import (
+    FoodSensor,
+    PillarSearchPolicy,
+    food_candidates,
+    inspection_sites,
+)
+from .search import (
+    segment_intersects as _intersects,
+)
 from .simulation import Arena, Motion, NoiseConfig, Pose, SimConfig
 
 _HOME = Pose(-0.9, -0.6, 1.7)
@@ -26,22 +35,6 @@ _DT = 0.18
 
 def _angle(value: float) -> float:
     return float((value + pi) % (2 * pi) - pi)
-
-
-def _intersects(a, b, bounds) -> bool:
-    """Closed segment/rectangle intersection using a two-dimensional slab test."""
-    lower, upper = 0.0, 1.0
-    for origin, delta, lo, hi in (
-        (a[0], b[0] - a[0], bounds[0], bounds[1]),
-        (a[1], b[1] - a[1], bounds[2], bounds[3]),
-    ):
-        if abs(delta) < 1e-12:
-            if origin < lo or origin > hi:
-                return False
-        else:
-            x, y = (lo - origin) / delta, (hi - origin) / delta
-            lower, upper = max(lower, min(x, y)), min(upper, max(x, y))
-    return lower <= upper
 
 
 class _Planner:
@@ -120,67 +113,18 @@ class _Planner:
         raise ValueError("No collision-free showcase route through this scene")
 
 
-def _select_food(planner: _Planner) -> tuple[np.ndarray, int]:
-    home = np.asarray([_HOME.x, _HOME.y])
-    candidates = []
-    for index, bounds in enumerate(planner.pillars):
-        x0, x1, y0, y1 = bounds
-        center = np.array([(x0 + x1) / 2, (y0 + y1) / 2])
-        angle = atan2(*(center - home)[::-1])
-        for offset in (0.0, -0.15, 0.15, -0.3, 0.3, -0.45, 0.45):
-            direction = np.array([cos(angle + offset), sin(angle + offset)])
-            exit_distance = min(
-                ((x1 - x0) / 2 + planner.clearance) / max(abs(direction[0]), 1e-12),
-                ((y1 - y0) / 2 + planner.clearance) / max(abs(direction[1]), 1e-12),
-            )
-            food = center + direction * (exit_distance + 0.045)
-            # Hidden means a sightline intersects the actual pillar, not merely
-            # the expanded navigation footprint.
-            if planner.free(food) and _intersects(home, food, bounds):
-                candidates.append((index, food))
-    for index, food in candidates:
-        try:
-            planner.route(home, food)
-        except ValueError:
-            continue
-        return food, index
-    raise ValueError(
-        "No accessible far-side food position has safe ant/cargo clearance in this scene"
-    )
-
-
-def _outbound_route(planner: _Planner, food: np.ndarray) -> list[np.ndarray]:
-    """Weave across the arena, routing every leg around actual pillars."""
-    extent = min(2.05, planner.limit - 0.15)
-    desired = [
-        (-0.8, -0.75),
-        (-0.85, 0.7),
-        (0.75, 0.8),
-        (0.8, -0.7),
-        (-0.4, -0.55),
-        (-0.75, 0.4),
-        (0.4, 0.55),
-    ]
-    # Nearby free grid samples provide deterministic fallbacks when a desired
-    # exploration point coincides with a seeded pillar.
-    samples = [
-        np.array([x, y])
-        for x in np.linspace(-extent, extent, 19)
-        for y in np.linspace(-extent, extent, 19)
-        if planner.free((x, y))
-    ]
-    result = [np.array([_HOME.x, _HOME.y])]
-    for fraction in desired:
-        target = np.asarray(fraction) * extent
-        for waypoint in sorted(samples, key=lambda p: float(np.linalg.norm(p - target))):
-            try:
-                leg = planner.route(result[-1], waypoint)
-            except ValueError:
-                continue
-            result.extend(leg[1:])
-            break
-    result.extend(planner.route(result[-1], food)[1:])
-    return result
+def _select_food(planner: _Planner, seed: int = 0) -> tuple[np.ndarray, int]:
+    """World-side random placement; this selected target never enters the policy."""
+    candidates = food_candidates(planner, (_HOME.x, _HOME.y))
+    pillars = sorted({pillar for pillar, _ in candidates})
+    if not pillars:
+        raise ValueError(
+            "No accessible far-side food position has safe ant/cargo clearance in this scene"
+        )
+    rng = np.random.default_rng(seed)
+    selected_pillar = int(rng.choice(pillars))
+    points = [point for pillar, point in candidates if pillar == selected_pillar]
+    return np.asarray(points[int(rng.integers(len(points)))]), selected_pillar
 
 
 def _movement_points(route) -> list[np.ndarray]:
@@ -270,28 +214,68 @@ class _ShowcaseScene:
         return position
 
 
-def run_showcase(config: SimConfig | None = None, *, capture_frames: bool = True) -> dict:
-    """Run a successful ideal pickup-and-delivery scenario through real steps.
+class _ActionBudget(Exception):
+    pass
 
-    Food is placed behind a seeded pillar. Scripted exploration and an ideal
-    geometry-informed planner execute obstacle-free outbound and return routes.
-    True scene geometry is explicitly available to this demonstration planner.
+
+class _FoodFound(Exception):
+    pass
+
+
+def run_showcase(
+    config: SimConfig | None = None,
+    *,
+    capture_frames: bool = True,
+    food_seed: int = 0,
+    search_seed: int = 0,
+    max_steps: int = 2000,
+) -> dict:
+    """Search without target knowledge, then carry locally detected food home.
+
+    Food placement and search have independent seeds. Geometry remains known
+    for obstacle-safe routing; the search policy receives no selected food
+    location. An ideal local range/occlusion sensor is the sole detection gate.
     """
+    for name, value in (("food_seed", food_seed), ("search_seed", search_seed)):
+        if not isinstance(value, int) or value < 0:
+            raise ValueError(f"{name} must be a nonnegative integer")
+    if not isinstance(max_steps, int) or max_steps < 1:
+        raise ValueError("max_steps must be a positive integer")
     config = config or SimConfig()
     records, frames, overviews = [], [], []
     state, phase = "on_ground", "outbound"
     total, outbound_length, return_length = 0.0, 0.0, 0.0
+    detected = None
+    first_detection = None
+    pickup_position = None
+    pickup_completed = delivery_completed = False
+    empty_inspections = []
+    outbound_waypoints, return_route = [], []
+    active_site = None
+    stop_reason = "search_exhausted"
     with Arena(config, noise=NoiseConfig()) as arena:
-        arena.reset(_HOME)
+        observation = arena.reset(_HOME)
         planner = _Planner(arena)
-        food, pillar_index = _select_food(planner)
-        outbound_route = _outbound_route(planner, food)
-        return_route = planner.route(food, np.array([_HOME.x, _HOME.y]))
+        food, pillar_index = _select_food(planner, food_seed)
+        sensor = FoodSensor(food, planner.pillars, detection_range=0.6)
+        policy = PillarSearchPolicy(inspection_sites(planner, (_HOME.x, _HOME.y)), seed=search_seed)
         scene = _ShowcaseScene(arena, food)
 
+        def estimated_position():
+            return np.array([_HOME.x + observation.odometry.x, _HOME.y + observation.odometry.y])
+
         def record(motion: Motion | None = None):
-            nonlocal total, outbound_length, return_length
+            nonlocal total, outbound_length, return_length, observation, detected, first_detection
             pose = arena.true_pose
+            visible = sensor.observe((pose.x, pose.y)) if state == "on_ground" else None
+            if detected is None and visible is not None:
+                detected = visible
+                first_detection = {
+                    "step": len(records),
+                    "pose": asdict(pose),
+                    "position": list(visible.position),
+                    "distance_m": visible.distance,
+                }
             if records:
                 old = records[-1]["true_pose"]
                 distance = hypot(pose.x - old["x"], pose.y - old["y"])
@@ -301,7 +285,8 @@ def run_showcase(config: SimConfig | None = None, *, capture_frames: bool = True
                 elif phase == "returning":
                     return_length += distance
             position = scene.update(pose, state, len(records))
-            observation = arena.observe()
+            if capture_frames:
+                observation = arena.observe()
             records.append(
                 {
                     "step": len(records),
@@ -310,81 +295,133 @@ def run_showcase(config: SimConfig | None = None, *, capture_frames: bool = True
                     "true_pose": asdict(pose),
                     "odometry": asdict(observation.odometry),
                     "collision": observation.collision,
-                    "action": asdict(motion) if motion else None,
+                    "action": asdict(motion) if motion is not None else None,
                     "carrying": state == "carried",
                     "food_state": state,
                     "food_position": position,
+                    "food_detected": detected is not None,
+                    "food_visible": visible is not None,
+                    "inspection_pillar": active_site.pillar_index if active_site else None,
+                    "completed_inspection_count": len(empty_inspections),
                 }
             )
             if capture_frames:
                 frames.append(observation.rgb.copy())
                 overviews.append(arena.render_overhead(size=520))
 
-        def step(motion: Motion):
+        def step(motion: Motion, *, searching: bool = False):
+            nonlocal observation
+            if len(records) - 1 >= max_steps:
+                raise _ActionBudget
             observation = arena.step(motion)
             if observation.collision:
                 raise ValueError("Showcase route blocked; select a different scene configuration")
             record(motion)
-            if len(records) > 1400:
-                raise RuntimeError("Showcase exceeded its fixed action budget")
+            if searching and detected is not None:
+                raise _FoodFound
 
-        def turn_to(heading: float):
-            while abs(delta := _angle(heading - arena.observe().compass_heading)) > _TURN:
-                step(Motion(0.0, float(np.clip(delta, -_TURN, _TURN))))
-            return delta
+        def follow(route, *, searching=False):
+            for target in _movement_points(route):
+                delta = target - estimated_position()
+                heading = atan2(delta[1], delta[0])
+                while abs(turn := _angle(heading - observation.compass_heading)) > _TURN:
+                    step(Motion(0.0, float(np.clip(turn, -_TURN, _TURN))), searching=searching)
+                step(Motion(float(np.linalg.norm(delta)), turn), searching=searching)
 
         record()
-        home_rgb = arena.observe().rgb.copy()
-        # Outbound coordinates belong to this explicit scripted engine showcase.
-        for target in _movement_points(outbound_route):
-            pose = arena.true_pose
-            delta = target - np.array([pose.x, pose.y])
-            remaining_turn = turn_to(atan2(delta[1], delta[0]))
-            step(Motion(float(np.linalg.norm(delta)), remaining_turn))
-        if hypot(arena.true_pose.x - food[0], arena.true_pose.y - food[1]) > 0.12:
-            raise RuntimeError("Showcase did not reach its pickup radius")
-        phase, state = "pickup", "carried"
-        for _ in range(3):
-            step(Motion())
-        pickup_position = asdict(arena.true_pose)
-        phase = "returning"
-        # This engine showcase intentionally uses ideal scene geometry to
-        # detour around the pillar. The research controllers are unchanged.
-        for target in _movement_points(return_route):
-            pose = arena.true_pose
-            delta = target - np.array([pose.x, pose.y])
-            remaining_turn = turn_to(atan2(delta[1], delta[0]))
-            step(Motion(float(np.linalg.norm(delta)), remaining_turn))
-        phase, state = "delivered", "delivered"
-        for _ in range(4):
-            step(Motion())
+        home_rgb = observation.rgb.copy()
+        try:
+            while detected is None:
+                active_site = policy.next_site(estimated_position())
+                if active_site is None:
+                    break
+                route = planner.route(estimated_position(), active_site.position)
+                outbound_waypoints.extend(point.tolist() for point in route[1:])
+                try:
+                    follow(route, searching=True)
+                except _FoodFound:
+                    break
+                policy.complete(active_site)
+                empty_inspections.append(
+                    {
+                        "pillar_index": active_site.pillar_index,
+                        "site_index": active_site.site_index,
+                        "step": records[-1]["step"],
+                    }
+                )
+            if detected is not None:
+                # Target-directed movement is allowed only after the sensor
+                # has released a nearby unobstructed food location.
+                active_site = None
+                approach = planner.route(estimated_position(), detected.position)
+                outbound_waypoints.extend(point.tolist() for point in approach[1:])
+                follow(approach)
+                if hypot(arena.true_pose.x - food[0], arena.true_pose.y - food[1]) > 0.12:
+                    raise RuntimeError("Showcase did not reach its pickup radius")
+                phase, state = "pickup", "carried"
+                pickup_completed = True
+                pickup_position = asdict(arena.true_pose)
+                for _ in range(3):
+                    step(Motion())
+                phase = "returning"
+                return_route = planner.route(estimated_position(), np.array([_HOME.x, _HOME.y]))
+                follow(return_route)
+                phase, state = "delivered", "delivered"
+                delivery_completed = True
+                for _ in range(4):
+                    step(Motion())
+                stop_reason = "food_delivered"
+        except _ActionBudget:
+            # A state transition is real only once its corresponding frame was
+            # recorded. Exhausting a budget during display holds must not
+            # invent a pickup or erase a delivery that already happened.
+            state = records[-1]["food_state"]
+            pickup_completed = state in {"carried", "delivered"}
+            delivery_completed = state == "delivered"
+            if not pickup_completed:
+                pickup_position = None
+            stop_reason = "food_delivered" if delivery_completed else "step_limit"
         endpoint = hypot(arena.true_pose.x - _HOME.x, arena.true_pose.y - _HOME.y)
         final_rgb = arena.observe().rgb.copy()
+    inspected_pillars = list(dict.fromkeys(row["pillar_index"] for row in empty_inspections))
     summary = {
-        "schema_version": 1,
-        "method": "ideal_obstacle_navigation",
+        "schema_version": 2,
+        "method": "food_blind_pillar_search",
         "route_strategy": "ideal_scene_geometry_planner",
+        "search_strategy": "nearest_unvisited_pillar_sites",
         "demonstration_mode": "ideal_foraging",
         "config": asdict(config),
         "noise": asdict(NoiseConfig()),
         "home_pose": asdict(_HOME),
+        "food_seed": food_seed,
+        "search_seed": search_seed,
         "food_initial_position": {"x": float(food[0]), "y": float(food[1]), "z": 0.075},
         "food_pillar_index": pillar_index,
         "food_pillar_bounds": list(planner.pillars[pillar_index]),
         "food_hidden_from_nest": True,
+        "food_known_before_detection": False,
+        "detection_model": "ideal proximity and unobstructed line of sight",
+        "detection_range_m": sensor.detection_range,
+        "food_detected_step": first_detection["step"] if first_detection else None,
+        "first_detection": first_detection,
+        "inspected_pillars": inspected_pillars,
+        "empty_pillars": [pillar for pillar in inspected_pillars if pillar != pillar_index],
+        "empty_inspections": empty_inspections,
+        "empty_inspection_count": len(empty_inspections),
+        "inspection_catalogue": [asdict(site) for site in policy.sites],
         "planner_clearance_m": planner.clearance,
-        "outbound_waypoints": [p.tolist() for p in outbound_route],
+        "outbound_waypoints": outbound_waypoints,
         "return_waypoints": [p.tolist() for p in return_route],
         "pickup_position": pickup_position,
-        "pickup_completed": True,
-        "delivery_completed": True,
+        "pickup_completed": pickup_completed,
+        "delivery_completed": delivery_completed,
         "food_state": state,
-        "success": endpoint <= 0.05,
+        "success": delivery_completed and endpoint <= 0.05,
         "success_radius": 0.05,
         "endpoint_error": endpoint,
-        "stop_reason": "food_delivered",
+        "stop_reason": stop_reason,
         "steps": len(records) - 1,
-        "max_steps": 1400,
+        "max_steps": max_steps,
         "path_length": total,
         "outbound_path_length": outbound_length,
         "return_path_length": return_length,
@@ -392,13 +429,14 @@ def run_showcase(config: SimConfig | None = None, *, capture_frames: bool = True
         "snapshots": 1,
         "memory_bytes": int(home_rgb.nbytes),
         "ideal_assumptions": [
-            "scripted exploration waypoints",
-            "ideal full-scene geometry and visibility-graph obstacle planning",
+            "food-blind geometry-derived inspection policy with visited-site memory",
+            "ideal local proximity and line-of-sight food sensor",
+            "ideal full-scene geometry for obstacle routing only",
             "noiseless displacement integration",
             "perfect compass",
             "ideal actuation",
             "visual-only cargo attachment",
-            "engine demonstration; no learned policy or biological validation",
+            "engine demonstration; no learned visual detection or biological validation",
         ],
     }
     return {

@@ -4,7 +4,7 @@ A Python research sandbox for learned visual memory and local homing. An agent m
 
 ![Ant foraging around pillars, finding food and returning home](docs/assets/homing-demo.gif)
 
-The preview is an **ideal engine showcase**: a longer foraging trip around pillars, food hidden behind a landmark, and an obstacle-aware return carrying the food. The showcase uses scene geometry for route planning; it is not a neural-network result. The [probing baseline replay](docs/assets/probing-baseline.gif) remains available for comparison.
+The preview shows **food-unknown search**: the ant inspects pillars, remembers empty checks, and discovers food only when nearby and unobstructed before carrying it home. Food placement varies independently of search. The showcase still uses ideal scene geometry for obstacle routing; it is not a neural-network result. The [probing baseline replay](docs/assets/probing-baseline.gif) remains available for comparison.
 
 [Arena overview](docs/assets/arena.png) · [Evaluator trajectory](docs/assets/trajectory.png)
 
