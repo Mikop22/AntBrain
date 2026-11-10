@@ -1,10 +1,8 @@
 # AntBrain: Ant Homing Simulation
 
-A Python research sandbox for learned visual memory and local homing. An agent moves on a flat floor in a procedurally generated 3D arena and observes low-resolution RGB panoramas. Rendering and neural-network training run on CPU; no GPU or external scene assets are required.
+A research simulation for learned visual memory and local homing.
 
 ![Ant foraging around pillars, finding food and returning home](docs/assets/homing-demo.gif)
-
-The preview shows **food-unknown search**: the ant inspects pillars, remembers empty checks, and discovers food only when nearby and unobstructed before carrying it home. Food placement varies independently of search. The showcase still uses ideal scene geometry for obstacle routing; it is not a neural-network result. The [probing baseline replay](docs/assets/probing-baseline.gif) remains available for comparison.
 
 [Arena overview](docs/assets/arena.png) · [Evaluator trajectory](docs/assets/trajectory.png)
 
