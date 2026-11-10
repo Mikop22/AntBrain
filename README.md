@@ -2,9 +2,9 @@
 
 A Python research sandbox for learned visual memory and local homing. An agent moves on a flat floor in a procedurally generated 3D arena and observes low-resolution RGB panoramas. Rendering and neural-network training run on CPU; no GPU or external scene assets are required.
 
-![Ideal ant foraging, food pickup and direct return](docs/assets/homing-demo.gif)
+![Ant foraging around pillars, finding food and returning home](docs/assets/homing-demo.gif)
 
-The preview is an **ideal engine showcase**: a scripted foraging trip, visible food pickup, and a direct return using noise-free path integration. It illustrates the intended behaviour; it is not a neural-network result. The [probing baseline replay](docs/assets/probing-baseline.gif) remains available for comparison.
+The preview is an **ideal engine showcase**: a longer foraging trip around pillars, food hidden behind a landmark, and an obstacle-aware return carrying the food. The showcase uses scene geometry for route planning; it is not a neural-network result. The [probing baseline replay](docs/assets/probing-baseline.gif) remains available for comparison.
 
 [Arena overview](docs/assets/arena.png) · [Evaluator trajectory](docs/assets/trajectory.png)
 

@@ -61,7 +61,11 @@ def test_ideal_replay_uses_dynamic_overview_and_explicit_showcase_labels(tmp_pat
     assert "Ideal engine showcase" in html and "not a trained neural policy" in html
     assert 'value="100" selected' in html
     with Image.open(tmp_path / "replay.gif") as animation:
+        assert animation.size == (1120, 656)
         assert animation.info["duration"] == 100
+        # No title/status banner above the panel labels in the compact showcase.
+        top = np.asarray(animation.convert("RGB"))[:16]
+        assert np.all(top == top[0, 0])
         assert animation.convert("RGB").getpixel((25, 156)) == (10, 20, 30)
         animation.seek(1)
         assert animation.info["duration"] == 1300

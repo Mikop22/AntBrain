@@ -6,11 +6,15 @@
 
 Open `artifacts/foraging/replay.html` for play/pause, stepping and scrubbing, or `replay.gif` for the animation. Choose a new output directory for each run.
 
+Use the default 6 m arena or a larger one for this scenario. Tight custom scenes can lack an accessible pocket behind a pillar once ant and cargo clearance are included; these configurations report an error rather than place the food inside an obstacle.
+
 ## Behaviour
 
-The ant leaves its nest, follows a longer curved outbound route, reaches a food item, picks it up, and returns directly to the nest while carrying it. The food is deposited on delivery. Small movement increments and bounded turns replace the research baseline's repeated forward/reverse probes.
+The ant leaves its nest, winds around landmarks, reaches food on the far side of a pillar, picks it up, and returns around the obstruction while carrying it. The food is deposited on delivery. Small forward movements and bounded turns replace the research baseline's repeated forward/reverse probes.
 
-The scenario executes actual collision-checked simulator movements. Food location, carrying state, pickup, and delivery are recorded with the trajectory and synchronized with the camera and overhead renders. The return controller uses the noise-free accumulated displacement and compass reference to point home. Outbound exploration is scripted; discovering food autonomously is outside this demonstration.
+The food placement is chosen from actual pillar geometry: a line from the nest to the food crosses the pillar itself, and the pickup location remains reachable. Both routes use obstacle-aware planning with additional clearance for the carried object. The scenario executes actual collision-checked movements; the ant never passes through the pillar to return home. Outbound exploration and access to scene geometry are explicit engine-showcase assumptions, not learned food discovery or biological sensing.
+
+Food location, carrying state, pickup, and delivery are recorded with the trajectory and synchronized with the camera and overhead renders. The summary records the chosen pillar and route-planning assumptions. An unsuitable scene can report a clear error instead of placing inaccessible food.
 
 ## Relation to ant navigation
 
@@ -20,4 +24,4 @@ This showcase depicts an idealized version of directed homing. It is not a valid
 
 ## Separation from research
 
-`showcase` is a separate command and records `demonstration_mode: ideal_foraging` in the summary. The replay labels its assumptions. Existing visual, neural, odometry and hybrid controllers remain available through `demo` and `benchmark`. Their failures and probing costs remain part of the recorded research results.
+`showcase` is a separate command and records `demonstration_mode: ideal_foraging` in the summary. The GIF has a compact layout with only arena, camera, and route labels; assumptions remain in the HTML description, summary, and documentation. Existing visual, neural, odometry and hybrid controllers remain available through `demo` and `benchmark`. Their failures and probing costs remain part of the recorded research results.

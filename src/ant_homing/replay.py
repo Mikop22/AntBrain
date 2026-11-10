@@ -40,6 +40,40 @@ def _display_indices(records: list[dict], limit: int) -> list[int]:
     return sorted(chosen)
 
 
+def _clean_showcase_frame(
+    annotated: Image.Image, records: list[dict], index: int, span: float, cx: float, cy: float
+) -> Image.Image:
+    """Present only the scene, camera views and route; keep provenance in HTML/JSON."""
+    image = Image.new("RGB", (1120, 656), "#f4f7fb")
+    draw = ImageDraw.Draw(image)
+    font = ImageFont.load_default(size=17)
+    small = ImageFont.load_default(size=14)
+    draw.text((24, 24), "Arena", font=font, fill="#142b49")
+    image.paste(annotated.crop((24, 155, 544, 675)), (24, 52))
+    for title, top, source_y in (("Current view", 24, 176), ("Home view", 214, 363)):
+        draw.text((580, top), title, font=font, fill="#142b49")
+        for panel, label in enumerate(("East", "South", "West", "North")):
+            draw.text((580 + panel * 124, top + 26), label, font=small, fill="#596979")
+        image.paste(annotated.crop((580, source_y, 1076, source_y + 124)), (580, top + 48))
+    draw.text((580, 408), "Route", font=font, fill="#142b49")
+    draw.rounded_rectangle((580, 438, 1076, 632), radius=10, fill="white", outline="#cdd8e6")
+
+    def point(pose):
+        return 828 + (pose["x"] - cx) * 166 / span, 535 - (pose["y"] - cy) * 166 / span
+
+    for position in range(1, index + 1):
+        color = "#15916c" if records[position]["phase"] in {"returning", "delivered"} else "#1766ad"
+        draw.line(
+            [point(records[position - 1]["true_pose"]), point(records[position]["true_pose"])],
+            fill=color,
+            width=3,
+        )
+    for record, color in ((records[0], "#15916c"), (records[index], "#e58b05")):
+        x, y = point(record["true_pose"])
+        draw.ellipse((x - 5, y - 5, x + 5, y + 5), fill=color)
+    return image
+
+
 def write_replay(result: dict, output: Path) -> None:
     """Create a scrub-able standalone replay and a shareable annotated GIF.
 
@@ -241,7 +275,9 @@ def write_replay(result: dict, output: Path) -> None:
             font=small,
             fill="#596979",
         )
-        composites.append(image)
+        composites.append(
+            _clean_showcase_frame(image, records, index, span, cx, cy) if ideal else image
+        )
     durations = [100 if ideal else 350] * len(composites)
     for position, index in enumerate(indices):
         if (
@@ -285,7 +321,7 @@ seek.oninput=()=>{pause();show(Number(seek.value))};document.getElementById('bac
         page = page.replace('value="700"', 'value="250"').replace('value="150"', 'value="50"')
         page = page.replace(
             "Pause or drag the slider to inspect a probe.",
-            "Ideal engine showcase: scripted outbound foraging and noise-free home-vector return; not a trained neural policy. Pause or scrub to inspect pickup, carrying and delivery.",
+            "Ideal engine showcase: scripted outbound foraging and obstacle-aware scene-geometry planning; not a trained neural policy. Pause or scrub to inspect pickup, carrying and delivery.",
         )
     page = (
         page.replace("FRAME_DATA", data)

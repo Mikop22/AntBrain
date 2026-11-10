@@ -81,6 +81,6 @@ Snapshot memory counts stored RGB only. CNN weights and controller state are exc
 
 ## Extension points
 
-The separate `showcase` command runs the [ideal foraging scenario](SHOWCASE.md). Its curved outbound route is scripted, its return uses noise-free displacement integration, and its ant/cargo are visual scene bodies. Dynamic overhead frames and food state are synchronized with each action. This scenario does not replace or tune any research controller. Its stored home image is a replay reference, not the return controller's guidance signal.
+The separate `showcase` command runs the [ideal foraging scenario](SHOWCASE.md). Food sits behind a real pillar; its outbound and return routes use ideal scene-geometry planning with cargo clearance. Its ant/cargo are visual scene bodies. Dynamic overhead frames and food state are synchronized with each action. This scenario does not replace or tune any research controller. Its stored home image is a replay reference, not the return controller's guidance signal. Showcase GIFs omit the title/status banner and explanatory footer; assumptions remain in the HTML, JSON, and documentation.
 
 Start with different scene seeds, routes, sensor conditions, and independent noise repetitions. Then add unfamiliar-place rejection, varied camera headings, multiple snapshots, learned visual correction inside the hybrid controller, or adaptive memory. Keep the information boundary and baseline/controller comparability intact as features are added.
