@@ -4,6 +4,8 @@ Three independent builders implemented pixel matching, the original InfoNCE CNN,
 
 The completed pilot favors **InfoNCE for learned familiarity and compact memory**, while normalized pixels remain strongest at familiar-place retrieval. Read the [assessment](ASSESSMENT.md) and [held-out results](results/RESULTS.md).
 
+The [familiarity analysis](FAMILIARITY.md) examines why unfamiliar-place false acceptance differs, using the frozen query scores without retraining.
+
 ![Training-only appearance examples](data-preview.png)
 
 Rows show training places; columns show the reference and independent clean, exposure, occlusion, and combined visits. Each cell contains all four camera directions. These examples are training data, not held-out results.
