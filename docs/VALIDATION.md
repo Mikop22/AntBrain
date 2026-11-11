@@ -6,8 +6,9 @@ Validated on 9–10 November 2026 in the cloud workspace, using Python 3.11.17, 
 
 | Check | Result |
 | --- | --- |
-| Full pytest suite | **114 passed**, no failures or skips |
+| Full pytest suite | **124 passed**, no failures or skips |
 | Level 1 tests | 52 passed: data contracts, pixel matching, encoder interfaces, loss/miner scalar references and finite gradients, spatial batch guards, retrieval/familiarity metrics, review gating, and frozen provenance |
+| Matched-encoder tests | 10 passed: identical encoder/initialization, MS wrapper/reference agreement, finite gradients without updates, review/source/data guards, frozen-threshold tampering, and all-six checkpoint preflight |
 | Simulation tests | 11 passed: actual rendering, deterministic views, compass ordering, collision sweeps, parallel clients, independent noise seeds, and lifecycle |
 | Learning tests | 12 passed: actual optimization/weight updates, checkpoint reload, deterministic training, held-out scenes, provenance validation, and stale camera-convention rejection |
 | Navigation tests | 13 passed: sensor-only controllers, physical probe costs, bounded trials, blocked-route failure, route recording, and checkpoint hashing |
@@ -15,7 +16,7 @@ Validated on 9–10 November 2026 in the cloud workspace, using Python 3.11.17, 
 | Replay tests | 4 passed: perspective projection, action/frame synchronization, lifecycle-event retention, and ideal showcase playback |
 | Showcase tests | 9 passed: food-unknown search, cargo lifecycle/clearance, bounded movement, synchronized renders, hidden-food geometry, pre-detection invariance, inspection memory, and exact-budget state handling |
 | Search tests | 3 passed: range/occlusion sensing, visited-site memory, and invalid configuration |
-| Ruff check and format check | Passed for all 31 Python source/test/report files |
+| Ruff check and format check | Passed for all 37 Python source/test/report files |
 | Bootstrap repeatability | Rerun successfully from `/tmp`, using the script's own project-directory resolution |
 | Wheel distribution | Built successfully; installed separately and rendered a scene through the installed wheel |
 
@@ -60,6 +61,10 @@ Review findings addressed before final validation included: false success for a 
 Three independent builders and three independent reviewers prepared a scene-disjoint visual-memory comparison. All pre-training approvals and source/data hashes were frozen before optimization. Two neural approaches each completed 20 epochs at seeds 0, 1, and 2, with identical per-seed batches, update counts, and image exposure. Validation selected checkpoints and calibrated thresholds; all six checkpoints were frozen before held-out evaluation.
 
 On 12 held-out scenes, normalized pixels achieved 98.87% spatial Recall@1, InfoNCE 96.21%, and the ConvAP adaptation 94.84%. InfoNCE had the strongest familiarity result: 6.25% unfamiliar false acceptance at 95.37% familiar acceptance, versus 48.61% at 94.70% for normalized pixels. A subsequent independent read-only audit verified chronology, frozen artifacts, saved-row metrics, aggregation, and paired scene confidence intervals. See the [assessment](level1/ASSESSMENT.md) and [complete results](level1/results/RESULTS.md).
+
+## Matched-encoder follow-up
+
+The [matched-encoder loss study](level1/loss-ablation/ASSESSMENT.md) subsequently held architecture, initial weights and all training inputs fixed. All three InfoNCE runs exactly reproduced the pilot's histories and selected weight tensors. On fresh test seeds 400–411, unfamiliar false acceptance was 8.22% for InfoNCE versus 13.43% for Multi-Similarity at approximately 94.8% familiar acceptance. The MS-minus-InfoNCE paired scene interval was +2.66 to +7.87 percentage points. The full suite now passes **124 tests**; all three pre-training reviews and the frozen provenance checks passed. This supports the chosen loss recipe under the shared budget, not a universal loss ranking or a homing result.
 
 ## Remaining research work
 

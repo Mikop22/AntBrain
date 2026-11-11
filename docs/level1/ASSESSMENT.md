@@ -2,6 +2,8 @@
 
 Use **InfoNCE as the learned visual-memory candidate** for the next navigation experiment, and retain normalized pixels as a required baseline. The present evidence does not justify choosing the larger ConvAP adaptation.
 
+A subsequent [matched-encoder experiment](loss-ablation/ASSESSMENT.md) supports this choice: on fresh scenes, InfoNCE has 8.22% unfamiliar false acceptance versus 13.43% for Multi-Similarity on the same encoder, with essentially equal familiar acceptance. Its retrieval difference is uncertain. The pilot results below remain the original architecture-and-loss comparison.
+
 ## What the results establish
 
 Normalized pixels have the highest familiar-place Recall@1: **98.87%**, compared with **96.21%** for InfoNCE and **94.84%** for ConvAP + Multi-Similarity. The paired scene intervals exclude zero for both learned models versus normalized pixels, and for ConvAP versus InfoNCE. Learning has not improved top-match retrieval on this benchmark.

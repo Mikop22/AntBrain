@@ -6,6 +6,8 @@ The completed pilot favors **InfoNCE for learned familiarity and compact memory*
 
 The [familiarity analysis](FAMILIARITY.md) examines why unfamiliar-place false acceptance differs, using the frozen query scores without retraining.
 
+The [matched-encoder experiment](loss-ablation/README.md) holds the encoder, initialization, training inputs and budget fixed while comparing the two loss recipes on fresh test scenes.
+
 ![Training-only appearance examples](data-preview.png)
 
 Rows show training places; columns show the reference and independent clean, exposure, occlusion, and combined visits. Each cell contains all four camera directions. These examples are training data, not held-out results.

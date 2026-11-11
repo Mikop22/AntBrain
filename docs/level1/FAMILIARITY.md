@@ -37,6 +37,8 @@ InfoNCE compares a positive repeat visit against the other places using a temper
 
 ## Next causal checks
 
+The first check below is now complete: the [matched-encoder study](loss-ablation/ASSESSMENT.md) finds lower unfamiliar false acceptance for InfoNCE (8.22%) than Multi-Similarity (13.43%) on fresh scenes, with essentially equal familiar acceptance. This supports a loss-recipe effect on the fixed encoder under the common budget; mining and positive-pair handling remain part of that intervention.
+
 1. Keep the encoder, descriptor size, data, batches, and tuning budget fixed while comparing InfoNCE and Multi-Similarity. Use validation for tuning and reserve fresh test scenes. This isolates the loss more closely than the existing pipeline comparison.
 2. Capture a distance sweep around remembered places with matched sensor conditions. Measure score and acceptance versus physical displacement, particularly through the currently untested 0.20–0.60 m interval. This tests whether low acceptance is a useful spatial familiarity signal.
 3. Mask shared backgrounds or change arena appearance in a controlled capture experiment. This tests the hypothesis that pixel similarity relies excessively on common scene content.

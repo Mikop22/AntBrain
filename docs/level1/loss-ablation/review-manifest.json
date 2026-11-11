@@ -1,0 +1,83 @@
+{
+  "approvals": {
+    "loss": "PASS",
+    "training": "PASS",
+    "evaluation": "PASS"
+  },
+  "reports": {
+    "loss": {
+      "path": "docs/level1/loss-ablation/reviews/loss.md",
+      "sha256": "23350d0a6741205b549e372f61a7a3cc3ba932153e4dba45b532026f9e2acf83"
+    },
+    "training": {
+      "path": "docs/level1/loss-ablation/reviews/training.md",
+      "sha256": "3b8bfff378aca779f293abbcc467ecae67900bdc044990ac9d2b4234c2e14c4f"
+    },
+    "evaluation": {
+      "path": "docs/level1/loss-ablation/reviews/evaluation.md",
+      "sha256": "37d004387c5967fecd3641a4541599acec98c9ead276c952f6b8938d18161086"
+    }
+  },
+  "reviewed_at_utc": "2026-11-11T01:43:40.483222+00:00",
+  "dataset_sha256": "09654a6df1675bed6c701e044881644df750adbb5de460d56b6686b467111f8e",
+  "metadata_sha256": "88ac941badc2926e2956f6cb37bf80898abe167a19e0619c82c00c349b0e8b59",
+  "source_sha256": {
+    "docs/level1/loss-ablation/PROTOCOL.md": "8cb811d400fd04a1155366247778a7730b9912acca92c3485273007b923a147d",
+    "src/ant_homing/artifacts.py": "76a34bacdecc88388a0447bcdfebbee83a4d2f8c561ea331ac9b7c3e4cee3d8c",
+    "src/ant_homing/level1/__init__.py": "c5eda36e4b9671885218453b206be80403feda11ea4c5bd448d83733c174b6e0",
+    "src/ant_homing/level1/convap.py": "1500c66b790986cc0421717b90457acd4952cc26c25f86b4619753efb7c99e0e",
+    "src/ant_homing/level1/data.py": "f1bc446416b264426f9012669b97541f1a163d274a50b7794eb762503ad180fb",
+    "src/ant_homing/level1/evaluation.py": "f40dfb5b582f121f5282c0ebd0b676e05f288264a20f3d4e496576b696bb01be",
+    "src/ant_homing/level1/experiment.py": "90d836f095ce53c12c453d91df9a2a8c29b736d8b0b33dad2f334e26b7238d35",
+    "src/ant_homing/level1/infonce.py": "7406a0aeaaed3e5f153f64876ca91917befa1d067bb198ff7fe980874d2a7710",
+    "src/ant_homing/level1/infonce_ms.py": "bc070677974c4384b7f6caeab7bcbee716e7c9e1de3ea535bb5605b2e4d0e652",
+    "src/ant_homing/level1/loss_ablation.py": "fd5da6f8e86034a6eba6d8bd3ebb4aec73857acfa23f9bb2ffe5788fc910c81d",
+    "src/ant_homing/level1/pixels.py": "5ebb0589145d8f24b09f281b2bd5739e37997169c01c12c6c35f8abfbe6b681a",
+    "src/ant_homing/simulation.py": "3d442721eea20d5b08dee8a5f43b165e14bed1c66e2ae10da3b72c27b2b41d04",
+    "tests/test_loss_ablation.py": "408dd4c7673806a52342719ff80d77bf30d3421df0aa65f0feb153f1ed04328e"
+  },
+  "budget": {
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "epochs": 20,
+    "learning_rate": 0.001
+  },
+  "data_identity": {
+    "training_validation_arrays": "byte-identical logical arrays to original pilot",
+    "compared_keys": [
+      "gallery",
+      "observations",
+      "gallery_positions",
+      "observation_positions",
+      "gallery_scene_ids",
+      "gallery_splits",
+      "place_ids",
+      "query_images",
+      "query_positions",
+      "query_scene_ids",
+      "query_splits",
+      "query_conditions",
+      "query_familiar",
+      "query_place_ids"
+    ],
+    "original_dataset_sha256": "33fbd02f0cf8c3f354f38bdd4313b7cbe3b9d12a90fd08cb5823595f2f761ff1",
+    "dataset_sha256": "09654a6df1675bed6c701e044881644df750adbb5de460d56b6686b467111f8e",
+    "test_scene_seeds": [
+      400,
+      401,
+      402,
+      403,
+      404,
+      405,
+      406,
+      407,
+      408,
+      409,
+      410,
+      411
+    ]
+  }
+}
