@@ -16,15 +16,6 @@ bash scripts/bootstrap.sh
 bash scripts/smoke.sh artifacts/smoke
 ```
 
-## Final Level 1 view models
-
-Saved checkpoints and calibrated familiarity thresholds are tracked in [`models/level1/`](models/level1/manifest.json):
-
-| Model | Module | Descriptor | Recall@1 | Familiarity AUROC | Unfamiliar FPR |
-| --- | --- | --- | ---: | ---: | ---: |
-| **InfoNCE CNN** (seeds 0–2) | `ant_homing.level1.infonce` | 64D (`256 B`) | 96.21% | **0.989** | **6.25%** |
-| **Normalized Pixels** | `ant_homing.level1.pixels` | 12,288D (`49 KiB`) | **98.87%** | 0.866 | 48.61% |
-
 ## Repository layout
 
 - `src/ant_homing/` — 3D PyBullet arena (`simulation.py`), homing controllers (`navigation.py`), foraging showcase (`showcase.py`, `search.py`), replay renderer (`replay.py`), and Level 1 visual models (`level1/`).
