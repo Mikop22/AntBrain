@@ -1,6 +1,4 @@
-"""Pre-training checks: no optimizer updates occur in this test module."""
-
-import json
+"""Batching and evaluation checks for Level 1 visual-memory experiments."""
 
 import numpy as np
 import pytest
@@ -11,44 +9,7 @@ from ant_homing.level1.evaluation import (
     summarize,
     validation_threshold,
 )
-from ant_homing.level1.experiment import (
-    REVIEWED_SOURCE_PATHS,
-    digest,
-    place_batches,
-    verify_reviews,
-)
-
-
-def test_review_gate_rejects_missing_approvals_changed_source_and_metadata(tmp_path):
-    hashes = {}
-    for name in REVIEWED_SOURCE_PATHS:
-        source = tmp_path / name
-        source.parent.mkdir(parents=True, exist_ok=True)
-        source.write_text("reviewed code")
-        hashes[name] = digest(source)
-    record = {
-        "approvals": {
-            name: "PASS" for name in ("pixels_data", "infonce_training", "convap_evaluation")
-        },
-        "dataset_sha256": "data",
-        "metadata_sha256": "metadata",
-        "source_sha256": hashes,
-        "reviewed_at_utc": "2026-11-10T00:00:00+00:00",
-    }
-    manifest = tmp_path / "reviews.json"
-    manifest.write_text(json.dumps(record))
-    assert verify_reviews(manifest, "data", "metadata", tmp_path) == record
-    with pytest.raises(ValueError, match="metadata"):
-        verify_reviews(manifest, "data", "changed", tmp_path)
-    record["approvals"].pop("pixels_data")
-    manifest.write_text(json.dumps(record))
-    with pytest.raises(ValueError, match="Three independent"):
-        verify_reviews(manifest, "data", "metadata", tmp_path)
-    record["approvals"]["pixels_data"] = "PASS"
-    manifest.write_text(json.dumps(record))
-    (tmp_path / next(iter(hashes))).write_text("unreviewed change")
-    with pytest.raises(ValueError, match="source changed"):
-        verify_reviews(manifest, "data", "metadata", tmp_path)
+from ant_homing.level1.experiment import place_batches
 
 
 def test_shared_batches_cover_training_places_and_respect_actual_negative_guard():

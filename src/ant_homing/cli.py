@@ -1,4 +1,4 @@
-"""Command-line entry points for collection, learning and navigation experiments."""
+"""Command-line entry points for rendering, foraging showcase, and navigation experiments."""
 
 from __future__ import annotations
 
@@ -156,33 +156,6 @@ def _benchmark(args):
     return {"output": str(output), "aggregate": aggregate}
 
 
-def _collect(args):
-    from .dataset import generate_dataset
-
-    scenes = json.loads(Path(args.scenes).read_text()) if args.scenes else None
-    return generate_dataset(
-        args.output,
-        scene_seeds=scenes,
-        locations_per_scene=args.locations,
-        seed=args.seed,
-        camera_size=args.camera_size,
-    )
-
-
-def _train(args):
-    from .learning import train_model
-
-    return train_model(
-        args.data, args.output, epochs=args.epochs, batch_size=args.batch_size, seed=args.seed
-    )
-
-
-def _evaluate(args):
-    from .learning import evaluate_retrieval
-
-    return evaluate_retrieval(args.data, args.checkpoint, args.output, split=args.split)
-
-
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(description="3D visual-memory navigation research sandbox")
     commands = root.add_subparsers(dest="command", required=True)
@@ -214,38 +187,19 @@ def parser() -> argparse.ArgumentParser:
         command.add_argument("--max-steps", type=int, default=160)
         command.add_argument("--step-distance", type=float, default=0.15)
         command.add_argument("--success-radius", type=float, default=0.25)
-        command.add_argument("--checkpoint", help="Trained CNN checkpoint, required for cnn")
+        command.add_argument(
+            "--checkpoint",
+            help="InfoNCE checkpoint path (defaults to models/level1/infonce-seed-0.pt)",
+        )
         if name == "demo":
             command.add_argument(
                 "--method",
-                choices=["odometry", "raw", "normalized", "hybrid", "cnn"],
-                default="raw",
+                choices=["odometry", "normalized", "infonce", "cnn", "hybrid"],
+                default="normalized",
             )
         else:
             command.add_argument("--seeds", default="0,1,2")
-            command.add_argument("--methods", default="odometry,raw,normalized,hybrid")
-    collect = commands.add_parser("collect", help="Generate scene-disjoint gallery/query sessions")
-    collect.set_defaults(function=_collect)
-    collect.add_argument("--output", required=True)
-    collect.add_argument("--locations", type=int, default=24)
-    collect.add_argument("--seed", type=int, default=0)
-    collect.add_argument("--camera-size", type=int, default=32)
-    collect.add_argument(
-        "--scenes", help="JSON mapping train/val/test to disjoint scene-seed lists"
-    )
-    train = commands.add_parser("train", help="Train a compact CNN using training scenes only")
-    train.set_defaults(function=_train)
-    train.add_argument("--data", required=True)
-    train.add_argument("--output", required=True)
-    train.add_argument("--epochs", type=int, default=8)
-    train.add_argument("--batch-size", type=int, default=32)
-    train.add_argument("--seed", type=int, default=0)
-    evaluate = commands.add_parser("evaluate", help="Compare retrieval methods in held-out scenes")
-    evaluate.set_defaults(function=_evaluate)
-    evaluate.add_argument("--data", required=True)
-    evaluate.add_argument("--checkpoint")
-    evaluate.add_argument("--split", choices=["val", "test"], default="test")
-    evaluate.add_argument("--output", required=True, help="New JSON report file")
+            command.add_argument("--methods", default="odometry,normalized,infonce,hybrid")
     return root
 
 
@@ -254,7 +208,6 @@ def main(argv: list[str] | None = None) -> int:
     try:
         report = arguments.function(arguments)
     except (ValueError, FileNotFoundError, FileExistsError, ImportError) as error:
-        # Expected setup/input errors get a concise diagnostic; unexpected defects retain a traceback.
         print(f"Error: {error}", file=sys.stderr)
         return 2
     print(json.dumps(report, indent=2, allow_nan=False))

@@ -13,13 +13,12 @@ def test_overhead_projection_matches_camera_axes():
     assert project_overhead(0, 0, 6, 520) == (260, 260)
     assert project_overhead(1, 0, 6, 520)[0] > 260
     assert project_overhead(0, 1, 6, 520)[1] < 260
-    # A 32-degree half-FOV corresponds to the edge of the perspective view.
     edge = np.tan(np.radians(32)) * 6 * 0.95
     assert project_overhead(edge, 0, 6, 520)[0] == pytest.approx(520)
 
 
 def test_replay_contains_every_action_and_standalone_controls(tmp_path):
-    result = run_episode(SimConfig(), max_steps=3, method="raw", capture_frames=True)
+    result = run_episode(SimConfig(), max_steps=3, method="normalized", capture_frames=True)
     write_replay(result, tmp_path)
     with Image.open(tmp_path / "replay.gif") as animation:
         assert animation.n_frames == len(result["trajectory"])
@@ -45,7 +44,7 @@ def test_subsampling_retains_short_pickup_and_delivery_events():
 
 
 def test_ideal_replay_uses_dynamic_overview_and_explicit_showcase_labels(tmp_path):
-    result = run_episode(SimConfig(), max_steps=3, method="raw", capture_frames=True)
+    result = run_episode(SimConfig(), max_steps=3, method="normalized", capture_frames=True)
     result["summary"]["demonstration_mode"] = "ideal_foraging"
     phases = ["outbound", "pickup", "returning", "delivered"]
     result["overview_frames"] = []
@@ -63,7 +62,6 @@ def test_ideal_replay_uses_dynamic_overview_and_explicit_showcase_labels(tmp_pat
     with Image.open(tmp_path / "replay.gif") as animation:
         assert animation.size == (1120, 656)
         assert animation.info["duration"] == 100
-        # No title/status banner above the panel labels in the compact showcase.
         top = np.asarray(animation.convert("RGB"))[:16]
         assert np.all(top == top[0, 0])
         assert animation.convert("RGB").getpixel((25, 156)) == (10, 20, 30)

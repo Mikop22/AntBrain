@@ -1,0 +1,62 @@
+{
+  "dataset_sha256": "33fbd02f0cf8c3f354f38bdd4313b7cbe3b9d12a90fd08cb5823595f2f761ff1",
+  "camera_convention": "compass-east-south-west-north-v1",
+  "image_shape": [
+    32,
+    128,
+    3
+  ],
+  "retrieval_tolerance_m": 0.25,
+  "threshold_calibration": "validation familiar-query 95th squared-distance percentile",
+  "models": {
+    "normalized_pixels": {
+      "module": "ant_homing.level1.pixels",
+      "descriptor_dimension": 12288,
+      "descriptor_bytes": 49152,
+      "parameter_count": 0,
+      "threshold": 9903.9189453125,
+      "test_recall_at_1": 0.9887152777777778,
+      "test_familiarity_auroc": 0.86609188126929,
+      "test_unfamiliar_false_acceptance": 0.4861111111111111,
+      "test_familiar_acceptance": 0.9470486111111112
+    },
+    "infonce": {
+      "module": "ant_homing.level1.infonce",
+      "descriptor_dimension": 64,
+      "descriptor_bytes": 256,
+      "parameter_count": 42728,
+      "model_state_bytes": 170912,
+      "temperature": 0.1,
+      "test_recall_at_1_mean": 0.9620949074074074,
+      "test_familiarity_auroc_mean": 0.9888489020704733,
+      "test_unfamiliar_false_acceptance_mean": 0.0625,
+      "test_familiar_acceptance_mean": 0.9537037037037037,
+      "checkpoints": [
+        {
+          "seed": 0,
+          "checkpoint": "models/level1/infonce-seed-0.pt",
+          "sha256": "fc7facfef88c19ac4ae498455b6f670d9b5de10faa9d98969b8a3a9de5778dfb",
+          "selected_epoch": 16,
+          "threshold": 0.5957932472229004,
+          "val_recall_at_1": 0.9674479166666666
+        },
+        {
+          "seed": 1,
+          "checkpoint": "models/level1/infonce-seed-1.pt",
+          "sha256": "66a2e44e284175224ebe3aa9bc714b1e0c2258ae6465bd904ab384518c67fe39",
+          "selected_epoch": 20,
+          "threshold": 0.5634540319442749,
+          "val_recall_at_1": 0.9635416666666666
+        },
+        {
+          "seed": 2,
+          "checkpoint": "models/level1/infonce-seed-2.pt",
+          "sha256": "595b204455bfd97aba0ef169ed18da8bb972d9b5203c4bfbdaa6e4b6fd9cde89",
+          "selected_epoch": 15,
+          "threshold": 0.5670695304870605,
+          "val_recall_at_1": 0.970703125
+        }
+      ]
+    }
+  }
+}
