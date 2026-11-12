@@ -1,10 +1,9 @@
-"""Review-gated training and frozen held-out comparison of Level 1 methods."""
+"""Training and held-out evaluation for the retained Level 1 visual-memory models."""
 
 from __future__ import annotations
 
 import argparse
 import hashlib
-import importlib
 import json
 from datetime import UTC, datetime
 from functools import partial
@@ -16,6 +15,7 @@ import torch
 
 from ant_homing.artifacts import new_output, provenance, write_json
 
+from . import infonce
 from .data import load_dataset
 from .evaluation import (
     evaluate_split,
@@ -25,13 +25,8 @@ from .evaluation import (
 )
 from .pixels import encode as pixel_encode
 
-METHODS = ("infonce", "convap")
 CANONICAL_NEGATIVE_GUARD_M = 0.9
 ACTUAL_NEGATIVE_GUARD_M = 0.5
-REVIEWED_SOURCE_PATHS = {
-    f"src/ant_homing/level1/{name}.py"
-    for name in ("__init__", "data", "pixels", "infonce", "convap", "evaluation", "experiment")
-} | {"src/ant_homing/simulation.py", "src/ant_homing/artifacts.py"}
 
 
 def digest(path: Path) -> str:
@@ -39,35 +34,10 @@ def digest(path: Path) -> str:
         return hashlib.file_digest(source, "sha256").hexdigest()
 
 
-def verify_reviews(path: Path, dataset_hash: str, metadata_hash: str, project: Path) -> dict:
-    """Fail closed if reviews are incomplete or reviewed source/data changed."""
-    manifest = json.loads(path.read_text())
-    if set(manifest.get("approvals", {})) != {
-        "pixels_data",
-        "infonce_training",
-        "convap_evaluation",
-    }:
-        raise ValueError("Three independent pre-training approvals are required")
-    if any(value != "PASS" for value in manifest["approvals"].values()):
-        raise ValueError("Pre-training review has unresolved findings")
-    if manifest.get("dataset_sha256") != dataset_hash:
-        raise ValueError("Review manifest does not match the dataset")
-    if manifest.get("metadata_sha256") != metadata_hash:
-        raise ValueError("Review manifest does not match the dataset metadata")
-    if not manifest.get("source_sha256") or not manifest.get("reviewed_at_utc"):
-        raise ValueError("Review manifest must identify reviewed source and time")
-    if not REVIEWED_SOURCE_PATHS.issubset(manifest["source_sha256"]):
-        raise ValueError("Review manifest omits required source files")
-    for name, expected in manifest["source_sha256"].items():
-        if digest(project / name) != expected:
-            raise ValueError(f"Reviewed source changed: {name}")
-    return manifest
-
-
 def place_batches(
     arrays: dict, epoch: int, seed: int, places_per_batch: int = 16
 ) -> list[np.ndarray]:
-    """Same scene/place batches for both models, with an explicit spatial guard."""
+    """Build within-scene place batches with an explicit spatial negative guard."""
     rng = np.random.default_rng(np.random.SeedSequence([seed, epoch]))
     scenes = np.unique(arrays["gallery_scene_ids"][arrays["gallery_splits"] == "train"])
     batches = []
@@ -132,18 +102,15 @@ def neural_features(module, model, images: np.ndarray) -> np.ndarray:
 def train_one(
     arrays: dict,
     metadata: dict,
-    module_name: str,
     output: Path,
     *,
     seed: int,
-    epochs: int,
-    learning_rate: float,
-    review_hash: str,
+    epochs: int = 20,
+    learning_rate: float = 0.001,
 ) -> dict:
-    """Called only by train_all after the complete source/data review gate."""
-    module = importlib.import_module(f"ant_homing.level1.{module_name}")
+    """Train one seeded InfoNCE encoder and calibrate its validation threshold."""
     torch.manual_seed(seed)
-    model = module.build_model()
+    model = infonce.build_model()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     checkpoint = output / "model.pt"
     history, best = [], -np.inf
@@ -163,7 +130,7 @@ def train_one(
             batch = tensor(images.reshape(-1, *images.shape[2:])).reshape(
                 places, visits, 3, 32, 128
             )
-            loss = module.training_loss(model, batch)
+            loss = infonce.training_loss(model, batch)
             if not bool(torch.isfinite(loss)):
                 raise ValueError("Nonfinite training loss")
             optimizer.zero_grad()
@@ -174,7 +141,7 @@ def train_one(
         validation = evaluate_split(
             arrays,
             "val",
-            lambda x: neural_features(module, model, x),
+            lambda x: neural_features(infonce, model, x),
             tolerance=metadata["retrieval_tolerance_m"],
         )
         metric = validation["metrics"]["recall_at_1"]
@@ -192,12 +159,11 @@ def train_one(
             torch.save(
                 {
                     "format_version": 1,
-                    "module": module_name,
+                    "module": infonce.NAME,
                     "seed": seed,
                     "epoch": epoch + 1,
                     "state_dict": model.state_dict(),
                     "dataset_sha256": metadata["data_sha256"],
-                    "review_manifest_sha256": review_hash,
                     "scene_seeds": metadata["scene_seeds"],
                     "image_shape": metadata["image_shape"],
                     "camera_convention": metadata["camera_convention"],
@@ -207,7 +173,7 @@ def train_one(
         print(
             json.dumps(
                 {
-                    "method": module_name,
+                    "method": infonce.NAME,
                     "seed": seed,
                     "epoch": epoch + 1,
                     "loss": history[-1]["loss"],
@@ -221,11 +187,11 @@ def train_one(
     validation = evaluate_split(
         arrays,
         "val",
-        lambda x: neural_features(module, model, x),
+        lambda x: neural_features(infonce, model, x),
         tolerance=metadata["retrieval_tolerance_m"],
     )
     report = {
-        "method": module_name,
+        "method": infonce.NAME,
         "seed": seed,
         "epochs": epochs,
         "learning_rate": learning_rate,
@@ -237,23 +203,15 @@ def train_one(
         "training_seconds": perf_counter() - started,
         "parameter_count": sum(p.numel() for p in model.parameters()),
         "model_state_bytes": sum(p.numel() * p.element_size() for p in model.state_dict().values()),
-        "descriptor_dimension": module.DESCRIPTOR_DIM,
-        "loss_configuration": getattr(
-            module,
-            "LOSS_CONFIG",
-            {"temperature": module.TEMPERATURE} if hasattr(module, "TEMPERATURE") else {},
-        ),
-        "loss_reference": getattr(module, "LOSS_REFERENCE", "paired symmetric InfoNCE"),
-        "visit_order": "per-place permutation seeded by training seed, epoch and batch index",
+        "descriptor_dimension": infonce.DESCRIPTOR_DIM,
+        "loss_configuration": {"temperature": infonce.TEMPERATURE},
         "checkpoint_sha256": digest(checkpoint),
     }
     write_json(output / "training.json", report)
     return report
 
 
-def train_all(
-    data: Path, output: Path, reviews: Path, *, seeds=(0, 1, 2), epochs=20, learning_rate=0.001
-) -> dict:
+def train_all(data: Path, output: Path, *, seeds=(0, 1, 2), epochs=20, learning_rate=0.001) -> dict:
     if (
         epochs < 1
         or not seeds
@@ -269,118 +227,90 @@ def train_all(
         raise ValueError(
             "Level 1 comparison requires native 32x128 RGB and four observations per place"
         )
-    project = Path(__file__).resolve().parents[3]
-    metadata_hash = digest(data / "metadata.json")
-    verify_reviews(reviews, metadata["data_sha256"], metadata_hash, project)
     target = new_output(output)
-    (target / "review-manifest.json").write_bytes(reviews.read_bytes())
-    review_hash = digest(reviews)
-    started_at = datetime.now(UTC).isoformat()
+    validation = evaluate_split(
+        arrays,
+        "val",
+        pixel_encode,
+        tolerance=metadata["retrieval_tolerance_m"],
+    )
     report = {
         "dataset_sha256": metadata["data_sha256"],
-        "metadata_sha256": metadata_hash,
-        "review_manifest_sha256": review_hash,
-        "started_at_utc": started_at,
+        "metadata_sha256": digest(data / "metadata.json"),
+        "started_at_utc": datetime.now(UTC).isoformat(),
         "seeds": list(seeds),
         "epochs": epochs,
         "learning_rate": learning_rate,
         "negative_guard_m": ACTUAL_NEGATIVE_GUARD_M,
         "canonical_guard_m": CANONICAL_NEGATIVE_GUARD_M,
         "provenance": provenance(),
+        "pixels": {"normalized": {"threshold": validation_threshold(validation["rows"])}},
         "runs": [],
-        "pixels": {},
     }
-    for variant in ("raw", "normalized"):
-        validation = evaluate_split(
-            arrays,
-            "val",
-            lambda x, v=variant: pixel_encode(x, v),
-            tolerance=metadata["retrieval_tolerance_m"],
-        )
-        report["pixels"][variant] = {"threshold": validation_threshold(validation["rows"])}
-    for method in METHODS:
-        for seed in seeds:
-            run = target / f"{method}-seed-{seed}"
-            run.mkdir()
-            report["runs"].append(
-                train_one(
-                    arrays,
-                    metadata,
-                    method,
-                    run,
-                    seed=seed,
-                    epochs=epochs,
-                    learning_rate=learning_rate,
-                    review_hash=review_hash,
-                )
+    for seed in seeds:
+        run_dir = target / f"infonce-seed-{seed}"
+        run_dir.mkdir()
+        report["runs"].append(
+            train_one(
+                arrays,
+                metadata,
+                run_dir,
+                seed=seed,
+                epochs=epochs,
+                learning_rate=learning_rate,
             )
+        )
     report["frozen_at_utc"] = datetime.now(UTC).isoformat()
     write_json(target / "trained.json", report)
     return report
 
 
 def evaluate_all(data: Path, run_dir: Path, output: Path) -> dict:
-    """Score test queries only after every run/checkpoint/threshold has been frozen."""
+    """Score held-out test queries using frozen checkpoints and thresholds."""
     torch.set_num_threads(1)
     arrays, metadata = load_dataset(data)
     frozen = json.loads((run_dir / "trained.json").read_text())
     if frozen["dataset_sha256"] != metadata["data_sha256"] or not frozen.get("frozen_at_utc"):
         raise ValueError("Dataset mismatch or unfinished training")
-    project = Path(__file__).resolve().parents[3]
-    manifest = run_dir / "review-manifest.json"
-    verify_reviews(manifest, metadata["data_sha256"], digest(data / "metadata.json"), project)
     if frozen["metadata_sha256"] != digest(data / "metadata.json"):
         raise ValueError("Dataset metadata changed after training")
-    if digest(manifest) != frozen["review_manifest_sha256"]:
-        raise ValueError("Review manifest changed")
     target = new_output(output)
-    results = []
     latency_images = arrays["gallery"][np.flatnonzero(arrays["gallery_splits"] == "train")[:32]]
-    for variant in ("raw", "normalized"):
-        result = evaluate_split(
-            arrays,
-            "test",
-            lambda x, v=variant: pixel_encode(x, v),
-            tolerance=metadata["retrieval_tolerance_m"],
-            threshold=frozen["pixels"][variant]["threshold"],
-        )
-        result.update(
-            method=variant,
-            seed=None,
-            parameter_count=0,
-            model_state_bytes=0,
-            descriptor_dimension=int(np.prod(metadata["image_shape"])),
-            observation_latency=observation_latency(
-                lambda x, v=variant: pixel_encode(x, v), latency_images
-            ),
-        )
-        results.append(result)
+
+    norm_result = evaluate_split(
+        arrays,
+        "test",
+        pixel_encode,
+        tolerance=metadata["retrieval_tolerance_m"],
+        threshold=frozen["pixels"]["normalized"]["threshold"],
+    )
+    norm_result.update(
+        method="normalized",
+        seed=None,
+        parameter_count=0,
+        model_state_bytes=0,
+        descriptor_dimension=int(np.prod(metadata["image_shape"])),
+        observation_latency=observation_latency(pixel_encode, latency_images),
+    )
+    results = [norm_result]
+
     for run in frozen["runs"]:
-        checkpoint = run_dir / f"{run['method']}-seed-{run['seed']}" / "model.pt"
+        checkpoint = run_dir / f"infonce-seed-{run['seed']}" / "model.pt"
         if digest(checkpoint) != run["checkpoint_sha256"]:
             raise ValueError("Checkpoint changed after freezing")
-        saved = torch.load(checkpoint, map_location="cpu", weights_only=True)
-        if saved["dataset_sha256"] != metadata["data_sha256"]:
-            raise ValueError("Checkpoint trained on a different dataset")
+        model, saved = infonce.load_checkpoint(checkpoint)
         if (
-            saved["module"] != run["method"]
+            saved["dataset_sha256"] != metadata["data_sha256"]
             or saved["seed"] != run["seed"]
             or saved["scene_seeds"] != metadata["scene_seeds"]
-            or saved["image_shape"] != metadata["image_shape"]
-            or saved["camera_convention"] != metadata["camera_convention"]
-            or saved["review_manifest_sha256"] != frozen["review_manifest_sha256"]
         ):
             raise ValueError("Checkpoint provenance differs from the frozen run")
-        module = importlib.import_module(f"ant_homing.level1.{run['method']}")
-        model = module.build_model()
-        model.load_state_dict(saved["state_dict"])
-        # Warm-up uses training images, not validation/test labels or statistics.
         warmup = np.flatnonzero(arrays["gallery_splits"] == "train")[:8]
-        neural_features(module, model, arrays["gallery"][warmup])
+        neural_features(infonce, model, arrays["gallery"][warmup])
         result = evaluate_split(
             arrays,
             "test",
-            partial(neural_features, module, model),
+            partial(neural_features, infonce, model),
             tolerance=metadata["retrieval_tolerance_m"],
             threshold=run["threshold"],
         )
@@ -397,28 +327,24 @@ def evaluate_all(data: Path, run_dir: Path, output: Path) -> dict:
             }
         )
         result["observation_latency"] = observation_latency(
-            partial(neural_features, module, model), latency_images
+            partial(neural_features, infonce, model), latency_images
         )
         results.append(result)
-    paired = {}
-    normalized = next(row for row in results if row["method"] == "normalized")
+
     reference = {
-        int(scene): values["recall_at_1"] for scene, values in normalized["scenes"].items()
+        int(scene): values["recall_at_1"] for scene, values in norm_result["scenes"].items()
     }
-    for method in METHODS:
-        runs = [row for row in results if row["method"] == method]
-        mean_scenes = {
-            scene: float(np.mean([row["scenes"][str(scene)]["recall_at_1"] for row in runs]))
-            for scene in reference
-        }
-        paired[method] = paired_scene_interval(mean_scenes, reference)
+    infonce_runs = [row for row in results if row["method"] == "infonce"]
+    mean_scenes = {
+        scene: float(np.mean([row["scenes"][str(scene)]["recall_at_1"] for row in infonce_runs]))
+        for scene in reference
+    }
     report = {
         "dataset_sha256": metadata["data_sha256"],
         "test_scene_ids": metadata["scene_seeds"]["test"],
         "frozen_at_utc": frozen["frozen_at_utc"],
         "results": results,
-        "paired_recall_vs_normalized": paired,
-        "interval_scope": "paired scene bootstrap conditional on these training seeds",
+        "paired_recall_vs_normalized": {"infonce": paired_scene_interval(mean_scenes, reference)},
         "reference_rgb_bytes": int(np.prod(metadata["image_shape"])),
         "cache_bytes_per_reference": {
             row["method"]: row["descriptor_dimension"] * 4 for row in results
@@ -435,7 +361,6 @@ def main():
     train = sub.add_parser("train")
     train.add_argument("--data", type=Path, required=True)
     train.add_argument("--output", type=Path, required=True)
-    train.add_argument("--reviews", type=Path, required=True)
     train.add_argument("--epochs", type=int, default=20)
     train.add_argument("--seeds", default="0,1,2")
     evaluate = sub.add_parser("evaluate")
@@ -447,7 +372,6 @@ def main():
         train_all(
             args.data,
             args.output,
-            args.reviews,
             seeds=tuple(int(x) for x in args.seeds.split(",")),
             epochs=args.epochs,
         )

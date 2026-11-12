@@ -1,7 +1,8 @@
-"""Check the InfoNCE model and objective without performing any optimization."""
+"""Check the InfoNCE model, objective, and saved Level 1 checkpoints."""
 
 from math import log
 
+import numpy as np
 import pytest
 import torch
 from torch import nn
@@ -25,6 +26,20 @@ def test_encoder_preserves_the_original_architecture_and_normalizes_descriptors(
     descriptors = infonce.encode(model, torch.rand(3, 3, 32, 128))
     assert descriptors.shape == (3, 64)
     torch.testing.assert_close(torch.linalg.vector_norm(descriptors, dim=1), torch.ones(3))
+
+
+def test_saved_level1_checkpoints_load_and_score_observations():
+    rng = np.random.default_rng(7)
+    image_a = rng.integers(0, 256, size=(32, 128, 3), dtype=np.uint8)
+    image_b = rng.integers(0, 256, size=(32, 128, 3), dtype=np.uint8)
+    for seed in (0, 1, 2):
+        model, info = infonce.load_checkpoint(seed)
+        assert not model.training
+        assert info["seed"] == seed
+        assert info["threshold"] > 0
+        scorer = infonce.load_image_scorer(seed)
+        assert scorer(image_a, image_a) == pytest.approx(0.0, abs=1e-7)
+        assert scorer(image_a, image_b) > 0.0
 
 
 def test_uniform_observations_have_log_number_of_places_loss():

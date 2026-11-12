@@ -7,10 +7,10 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
+from ant_homing.level1.infonce import default_checkpoint
 from ant_homing.navigation import (
     normalized_image_distance,
     odometry_home,
-    raw_image_distance,
     run_episode,
     visual_home,
 )
@@ -30,8 +30,10 @@ class SensorOnlyAgent:
         raise AssertionError("Controller attempted evaluator-state access")
 
     def observe(self):
-        image = np.empty((4, 4, 3), dtype=np.uint8)
-        image[:] = (round(128 + self.x * 50), round(128 + self.y * 50), 20)
+        base = np.arange(48, dtype=np.float32).reshape(4, 4, 3)
+        base[:, :, 0] += self.x * 80.0
+        base[:, :, 1] += self.y * 80.0
+        image = np.clip(np.rint(base), 0, 255).astype(np.uint8)
         return SimpleNamespace(
             rgb=image,
             odometry=Pose(self.x, self.y, self.heading),
@@ -50,11 +52,10 @@ class SensorOnlyAgent:
         return self.observe()
 
 
-def test_pixel_distances_and_brightness_normalization():
+def test_normalized_pixel_distance_and_brightness_invariance():
     image = np.arange(48, dtype=np.uint8).reshape(4, 4, 3) + 10
-    assert raw_image_distance(image, image) == 0.0
+    assert normalized_image_distance(image, image) == 0.0
     assert normalized_image_distance(image, image + 20) < 1e-10
-    assert raw_image_distance(image, image + 20) > 0.0
 
 
 def test_odometry_controller_uses_sensor_interface_only():
@@ -84,8 +85,8 @@ def test_flat_visual_landscape_stops_without_inventing_direction():
 
 
 def test_episode_budget_is_enforced_and_trajectory_is_reproducible():
-    first = run_episode(SimConfig(seed=21), "raw", max_steps=4)
-    second = run_episode(SimConfig(seed=21), "raw", max_steps=4)
+    first = run_episode(SimConfig(seed=21), "normalized", max_steps=4)
+    second = run_episode(SimConfig(seed=21), "normalized", max_steps=4)
     assert first["summary"]["steps"] == 4
     assert first["summary"]["stop_reason"] == "step_limit"
     assert first["trajectory"] == second["trajectory"]
@@ -104,8 +105,6 @@ def test_zero_noise_odometry_returns_and_records_all_movement():
 
 
 def test_success_does_not_stop_controller_at_hidden_goal():
-    # A zero-length outbound route begins at home. The evaluator must not
-    # preempt the controller: it still reports the sensor-based arrival reason.
     result = run_episode(SimConfig(seed=22), "odometry", outbound=[])
     assert result["summary"]["stop_reason"] == "odometry_arrival"
     assert result["summary"]["steps"] == 0
@@ -135,12 +134,9 @@ def test_custom_outbound_route_is_preserved_in_summary():
     assert result["summary"]["checkpoint_sha256"] is None
 
 
-def test_cnn_checkpoint_content_hash_is_recorded(tmp_path, monkeypatch):
-    # Scoring is mocked here to isolate provenance from neural-model training.
-    checkpoint = tmp_path / "model.pt"
-    content = b"checkpoint provenance fixture"
-    checkpoint.write_bytes(content)
-    monkeypatch.setattr("ant_homing.learning.load_image_scorer", lambda _path: raw_image_distance)
-    result = run_episode(SimConfig(seed=22), "cnn", checkpoint=checkpoint, max_steps=4)
-    assert result["summary"]["checkpoint_sha256"] == hashlib.sha256(content).hexdigest()
-    assert result["summary"]["checkpoint_file_bytes"] == len(content)
+def test_infonce_navigation_uses_saved_default_checkpoint():
+    expected_ckpt = default_checkpoint(0)
+    expected_hash = hashlib.sha256(expected_ckpt.read_bytes()).hexdigest()
+    result = run_episode(SimConfig(seed=22), "infonce", max_steps=4)
+    assert result["summary"]["checkpoint_sha256"] == expected_hash
+    assert result["summary"]["checkpoint_file_bytes"] == expected_ckpt.stat().st_size

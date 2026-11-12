@@ -1,83 +1,56 @@
-# Level 1 visual-memory experiments
+# Level 1 visual-memory models
 
-Three independent builders implemented pixel matching, the original InfoNCE CNN, and a camera-aware Conv-AP-inspired CNN with Multi-Similarity learning. Three independent reviewers approved the implementations and shared data/training/evaluation code **before optimization**. See the [protocol](PROTOCOL.md), [reviews](reviews/), and [frozen review manifest](review-manifest.json).
+Level 1 evaluated visual place recognition and unfamiliar-place rejection across 44 disjoint procedural scenes (24 train, 8 validation, 12 test; 48 reference places per scene) under `clean`, `exposure`, `occlusion`, and `combined` sensor conditions.
 
-The completed pilot favors **InfoNCE for learned familiarity and compact memory**, while normalized pixels remain strongest at familiar-place retrieval. Read the [assessment](ASSESSMENT.md) and [held-out results](results/RESULTS.md).
+![Appearance condition examples](data-preview.png)
 
-The [familiarity analysis](FAMILIARITY.md) examines why unfamiliar-place false acceptance differs, using the frozen query scores without retraining.
+## Final retained models
 
-The [matched-encoder experiment](loss-ablation/README.md) holds the encoder, initialization, training inputs and budget fixed while comparing the two loss recipes on fresh test scenes.
+Two models are retained for Level 2 local-homing experiments and tracked in [`models/level1/manifest.json`](../../models/level1/manifest.json):
 
-![Training-only appearance examples](data-preview.png)
+| Model | Params | Cache / Ref | Recall@1 | Recall@5 | Familiarity AUROC | Unfamiliar FPR | Familiar TPR | Latency |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| **InfoNCE CNN** | 42,728 | 256 B | 96.21% ± 0.25 | 100.00% | **0.989** | **6.25%** | 95.37% | 0.70 ms |
+| **Normalized Pixels** | 0 | 49,152 B | **98.87%** | 99.87% | 0.866 | 48.61% | 94.70% | 0.07 ms |
 
-Rows show training places; columns show the reference and independent clean, exposure, occlusion, and combined visits. Each cell contains all four camera directions. These examples are training data, not held-out results.
+* **InfoNCE CNN (`ant_homing.level1.infonce`):** 3-layer strided conv encoder with $(2, 8)$ spatial pooling and unit-normalized 64D descriptors trained with symmetric paired InfoNCE ($\tau = 0.1$). Selected for compact memory and strong unfamiliar-place rejection.
+* **Normalized Pixels (`ant_homing.level1.pixels`):** Per-image z-score normalized RGB baseline. Selected as the non-learned reference for fine-scale retrieval near familiar locations.
+* **Discarded candidates:** Raw pixels (fails under exposure shifts) and Multi-Similarity / Conv-AP variants (higher unfamiliar false acceptance and larger footprint than InfoNCE).
 
-## Reproduce the study
+## Saved checkpoints
 
-From the repository root, install the ML/development extras with `bash scripts/bootstrap.sh`. Generate the canonical data only if the output directory does not already exist:
+| Seed | Checkpoint | Selected Epoch | Validation Threshold ($d^2$) |
+| ---: | --- | ---: | ---: |
+| 0 | `models/level1/infonce-seed-0.pt` | 16 | `0.5958` |
+| 1 | `models/level1/infonce-seed-1.pt` | 20 | `0.5635` |
+| 2 | `models/level1/infonce-seed-2.pt` | 15 | `0.5671` |
 
-```bash
-.venv/bin/python - <<'PY'
-from ant_homing.level1.data import generate_dataset
-generate_dataset("artifacts/level1/data")
-PY
+Normalized-pixel validation threshold ($d^2$ over 12,288 channels): `9903.92` (`0.8060` mean squared difference).
 
-.venv/bin/python -m ant_homing.level1.experiment train \
-  --data artifacts/level1/data --output artifacts/level1/training \
-  --reviews docs/level1/review-manifest.json --epochs 20 --seeds 0,1,2
-
-.venv/bin/python -m ant_homing.level1.experiment evaluate \
-  --data artifacts/level1/data --run-dir artifacts/level1/training \
-  --output artifacts/level1/evaluation
-
-.venv/bin/python scripts/report_level1.py \
-  --data artifacts/level1/data --training artifacts/level1/training \
-  --evaluation artifacts/level1/evaluation --output docs/level1/results
-```
-
-Use new output directories for new runs. The training gate rejects missing reviews or changed source/data/metadata. The saved manifest identifies the reviewed collection and implementation; investigate a hash mismatch rather than silently replacing the hashes. Changes require focused review before a new training gate is created.
-
-Report tables require NumPy; plots additionally use optional matplotlib. The report still writes complete tables and JSON if matplotlib is unavailable. Plotting dependencies do not affect training or scored predictions.
-
-## Outputs
-
-- `artifacts/level1/data/`: arrays, validated metadata, and a training-only appearance preview.
-- `artifacts/level1/training/`: six validation-selected neural checkpoints, histories, calibrated thresholds, copied reviews, and the final frozen manifest.
-- `artifacts/level1/evaluation/comparison.json`: per-query, condition, scene, familiarity, timing, and memory results for every approach/run.
-- `docs/level1/results/`: concise tracked results, summary JSON, and plots when available.
-
-Data and model files are local generated artifacts and are not committed to Git. Tracked [artifact fingerprints](results/artifacts.json) identify the exact archive, checkpoints, histories, and complete evaluation; [data metadata](results/data-metadata.json) records the scene configurations and split counts.
-
-`artifacts/level1/run-bundle.zip` preserves the six trained checkpoints, histories, frozen review manifest, complete per-query evaluation, and report. It excludes the image archive; generate that with the reviewed generator above and verify its fingerprint before using the saved models.
-
-## Use a trained encoder
-
-Level 1 checkpoints use the Level 1 module interface. For example, encode a current simulator observation with the seed-0 InfoNCE checkpoint:
+## Loading for Level 2 experiments
 
 ```python
-import torch
-from ant_homing.level1 import infonce
-from ant_homing.level1.experiment import neural_features
+from ant_homing.level1 import infonce, pixels
 from ant_homing.simulation import Arena, SimConfig
 
-saved = torch.load(
-    "artifacts/level1/training/infonce-seed-0/model.pt",
-    map_location="cpu", weights_only=True,
-)
-model = infonce.build_model()
-model.load_state_dict(saved["state_dict"])
-with Arena(SimConfig(arena_size=8.0, landmark_count=24)) as arena:
-    descriptor = neural_features(infonce, model, arena.observe().rgb[None])
-assert descriptor.shape == (1, 64)
+# 1. Load a frozen InfoNCE model and its calibrated threshold
+model, info = infonce.load_checkpoint(seed=0)
+threshold = info["threshold"]
+
+# 2. Score two RGB observations (32x128x3 uint8) for homing
+infonce_scorer = infonce.load_image_scorer(seed=0)
+pixel_scorer = pixels.normalized_image_distance
+
+with Arena(SimConfig(seed=300)) as arena:
+    home_rgb = arena.observe().rgb
+    d_infonce = infonce_scorer(home_rgb, home_rgb)
+    d_pixels = pixel_scorer(home_rgb, home_rgb)
 ```
 
-Reference and query observations must use the same camera convention. Familiarity compares the nearest **squared** descriptor distance with that run's saved threshold in `trained.json`. A descriptor or familiarity score alone does not choose a movement; controller evaluation is the next experiment.
+## Reproducing training and evaluation from scratch
 
-## Implementation references
-
-- [Conv-AP / GSV-Cities](https://github.com/amaralibey/gsv-cities): spatial aggregation. Our small shared four-camera encoder is a project-specific adaptation, not the published ResNet architecture.
-- [BoQ](https://github.com/amaralibey/Bag-of-Queries) and [SALAD](https://github.com/serizba/salad): supervised visual-place metric-learning recipes.
-- [pytorch-metric-learning v2.3.0](https://github.com/KevinMusgrave/pytorch-metric-learning/tree/v2.3.0): the explicitly pinned loss/miner semantics checked against independent scalar tests.
-- [CliqueMining](https://github.com/serizba/cliquemining): motivation for informative negatives and geographically precise place recognition. This experiment uses a shared spatial guard and within-scene batches, not the full CliqueMining algorithm.
-
-These experiments evaluate recognition and familiarity. They do not demonstrate successful ant homing or a biologically faithful memory mechanism.
+```bash
+.venv/bin/python -c 'from ant_homing.level1.data import generate_dataset; generate_dataset("artifacts/level1/data")'
+.venv/bin/python -m ant_homing.level1.experiment train --data artifacts/level1/data --output artifacts/level1/training
+.venv/bin/python -m ant_homing.level1.experiment evaluate --data artifacts/level1/data --run-dir artifacts/level1/training --output artifacts/level1/evaluation
+```

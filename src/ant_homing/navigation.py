@@ -1,4 +1,4 @@
-"""Baseline homing controllers and evaluator-separated episode recording.
+"""Homing controllers and evaluator-separated episode recording.
 
 Controllers receive camera images, dead reckoning and a compass only. The episode
 recorder accesses true poses to calculate metrics, never to choose actions.
@@ -15,6 +15,7 @@ from typing import Protocol
 
 import numpy as np
 
+from .level1.pixels import normalized_image_distance
 from .simulation import Arena, Motion, NoiseConfig, Observation, Pose, SimConfig
 
 ImageScorer = Callable[[np.ndarray, np.ndarray], float]
@@ -28,23 +29,6 @@ class AgentInterface(Protocol):
     def step(self, motion: Motion) -> Observation: ...
 
 
-def raw_image_distance(current: np.ndarray, reference: np.ndarray) -> float:
-    """Mean squared RGB difference on the [0, 1] intensity scale."""
-    difference = (current.astype(np.float32) - reference.astype(np.float32)) / 255.0
-    return float(np.mean(difference * difference))
-
-
-def normalized_image_distance(current: np.ndarray, reference: np.ndarray) -> float:
-    """RGB difference after global brightness/contrast normalization."""
-
-    def normalize(image: np.ndarray) -> np.ndarray:
-        pixels = image.astype(np.float32) / 255.0
-        return (pixels - pixels.mean()) / max(float(pixels.std()), 1e-6)
-
-    difference = normalize(current) - normalize(reference)
-    return float(np.mean(difference * difference))
-
-
 def _turn_to(heading: float, target: float) -> float:
     return float((target - heading + pi) % (2.0 * pi) - pi)
 
@@ -55,11 +39,7 @@ def odometry_home(
     step_distance: float = 0.15,
     stop_radius: float = 0.04,
 ) -> str:
-    """Drive towards the dead-reckoned origin; no true position is consulted.
-
-    The measured position estimate is relative to the episode's starting pose.
-    An external action budget must bound the supplied interface's ``step``.
-    """
+    """Drive towards the dead-reckoned origin; no true position is consulted."""
     if (
         not np.isfinite(step_distance)
         or step_distance <= 0
@@ -88,17 +68,12 @@ def visual_home(
     agent: AgentInterface,
     reference: np.ndarray,
     *,
-    scorer: ImageScorer = raw_image_distance,
+    scorer: ImageScorer = normalized_image_distance,
     step_distance: float = 0.15,
     match_threshold: float = 0.0,
     min_improvement: float = 1e-7,
 ) -> str:
-    """Descend a visual-familiarity score using physically executed probes.
-
-    Each candidate is reached by an actual action and followed by an actual
-    backward action. No images are queried at unvisited locations. Probe and
-    recovery costs are therefore part of the measured episode trajectory.
-    """
+    """Descend a visual-familiarity score using physically executed probes."""
     if (
         not np.isfinite(step_distance)
         or step_distance <= 0
@@ -125,8 +100,6 @@ def visual_home(
             probe = agent.step(
                 Motion(step_distance, _turn_to(observation.compass_heading, bearing))
             )
-            # Arena rejects an entire colliding translation, so no reverse
-            # translation is needed when the forward probe is blocked.
             if probe.collision:
                 continue
             score = scorer(probe.rgb, reference)
@@ -209,15 +182,8 @@ def run_episode(
     outbound: Sequence[Motion] | None = None,
     match_threshold: float = 0.0,
 ) -> dict:
-    """Run a prescribed route and return metrics, trace and optional RGB frames.
-
-    ``goal_within_radius`` reports final geometry. ``success`` additionally
-    requires completed outbound motion and a nonfailure controller stop. Reaching
-    a hidden goal never stops the controller.
-    All actions, including outbound motion and visual probes, count against
-    ``max_steps``. The default route stays in the arena's reserved open centre.
-    """
-    if method not in {"odometry", "raw", "visual", "normalized", "cnn", "hybrid"}:
+    """Run a prescribed route and return metrics, trace and optional RGB frames."""
+    if method not in {"odometry", "normalized", "infonce", "cnn", "hybrid"}:
         raise ValueError(f"Unknown navigation method: {method}")
     if (
         max_steps < 1
@@ -229,20 +195,18 @@ def run_episode(
         or match_threshold < 0
     ):
         raise ValueError("max_steps, step_distance and success_radius must be positive")
-    if method == "cnn" and checkpoint is None:
-        raise ValueError("CNN navigation requires a trained checkpoint")
-    scorer: ImageScorer = raw_image_distance
+    scorer: ImageScorer = normalized_image_distance
+    checkpoint_path: Path | None = None
     checkpoint_sha256 = None
     checkpoint_file_bytes = 0
-    if method == "normalized":
-        scorer = normalized_image_distance
-    elif method == "cnn":
-        from .learning import load_image_scorer
+    if method in {"infonce", "cnn"} or (method == "hybrid" and checkpoint is not None):
+        from .level1.infonce import default_checkpoint, load_image_scorer
 
-        scorer = load_image_scorer(checkpoint)
-        with Path(checkpoint).open("rb") as checkpoint_file:
+        checkpoint_path = Path(checkpoint) if checkpoint is not None else default_checkpoint(0)
+        scorer = load_image_scorer(checkpoint_path)
+        with checkpoint_path.open("rb") as checkpoint_file:
             checkpoint_sha256 = hashlib.file_digest(checkpoint_file, "sha256").hexdigest()
-        checkpoint_file_bytes = Path(checkpoint).stat().st_size
+        checkpoint_file_bytes = checkpoint_path.stat().st_size
     route = list(outbound) if outbound is not None else [Motion(0.60, 0.0), Motion(0.45, pi / 2.0)]
     with Arena(config, noise=noise) as arena:
         arena.reset(Pose(0.0, 0.0, 0.0))
@@ -321,7 +285,7 @@ def run_episode(
             "checkpoint_sha256": checkpoint_sha256,
             "step_distance": float(step_distance),
             "match_threshold": float(match_threshold),
-            "checkpoint": str(checkpoint) if method == "cnn" else None,
+            "checkpoint": str(checkpoint_path) if checkpoint_path is not None else None,
             "assumptions": [
                 "planar kinematic motion",
                 "perfect compass",
