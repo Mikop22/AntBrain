@@ -1,6 +1,5 @@
 # AntBrain
 
-A reproducible 3D simulation sandbox for learned visual memory and local homing.
 
 ![Ant foraging around pillars, finding food and returning home](docs/assets/homing-demo.gif)
 
